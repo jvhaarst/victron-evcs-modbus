@@ -1,13 +1,22 @@
+"""Holding register definitions for Victron EVCS Modbus TCP (unit-id 1).
+
+Source: EVCS-Modbus-TCP-register-list-v3.8.xlsx, sheet "Holding registers".
+"""
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True)
 class Register:
     address: int
     name: str
-    data_type: str  # "uint16" or "int16"
-    scale: int      # divide raw value by this to get real value
+    data_type: Literal["uint16", "int16"]
+    scale: int      # divide raw value by this to get real value; must be > 0
     unit: str       # display unit string
+
+    def __post_init__(self) -> None:
+        if self.scale <= 0:
+            raise ValueError(f"scale must be > 0, got {self.scale!r}")
 
 
 REGISTERS = [

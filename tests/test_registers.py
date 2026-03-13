@@ -31,3 +31,14 @@ def test_charging_current_actual_has_scale_10():
 def test_addresses_are_unique():
     addresses = [r.address for r in REGISTERS]
     assert len(addresses) == len(set(addresses))
+
+
+def test_all_registers_have_positive_scale():
+    for reg in REGISTERS:
+        assert reg.scale > 0, f"Register {reg.address} has scale={reg.scale}"
+
+
+def test_all_registers_have_valid_data_type():
+    valid = {"uint16", "int16"}
+    for reg in REGISTERS:
+        assert reg.data_type in valid, f"Register {reg.address} has data_type={reg.data_type!r}"
