@@ -31,9 +31,11 @@ class StringRegister:
 
 Two new lists:
 - `STRING_REGISTERS` — the 2 string registers (Serial Id: 5001–5006, Device name: 5027–5048)
-- `ALL_REGISTERS: list[Register | StringRegister]` — full combined list (115 entries)
+- `ALL_REGISTERS: list[Register | StringRegister]` — full combined list (115 entries: 33 existing + 80 new scalar + 2 string)
 
 `REGISTERS` (existing 33 scalar entries) is kept as-is for backwards compatibility.
+
+The 80 new scalar registers to add come from `docs/specs/EVCS-Modbus-TCP-register-list-v3.8.xlsx` (sheet "Holding registers"). All addresses 5051–5140 not yet in `REGISTERS`, plus missing addresses in 5051–5093 and 5096–5120 range. See the spreadsheet for the authoritative list of names, types, scales, and units.
 
 ### Categories (`categories.py`)
 
@@ -58,10 +60,18 @@ CATEGORIES: dict[str, list[int]] = {
 **String reads** — `StringRegister` entries are read individually (not batched with scalars, as they span non-contiguous address blocks). Each read:
 1. Calls `read_holding_registers(address=reg.address, count=reg.register_count, device_id=1)`
 2. Packs the uint16 words as big-endian bytes: `struct.pack(f">{reg.register_count}H", *raw_words)`
-3. Strips null bytes and decodes with `reg.encoding`
-4. Result stored in the shared dict as a `str` (or `None` on error)
+3. Strips **trailing** null bytes only: `raw_bytes.rstrip(b'\x00')` (not `strip()` or `replace`, to preserve embedded nulls if present)
+4. Decodes with `reg.encoding`
+5. Result stored in the shared dict as a `str` (or `None` on error)
 
 Return type becomes `dict[int, int | str | None]`.
+
+**`build_table` update** — `StringRegister` has no `.scale` or `.unit`. `build_table` must branch on register type:
+- Scalar `Register`: render value via `format_value(raw, reg.scale)`, unit column from `reg.unit`
+- `StringRegister`: render value as the decoded string directly (no scale), unit column blank (`""`)
+- Either type with `None` value: render `"[red]error[/red]"`, unit blank
+
+`format_value` is only called for scalar `Register` entries.
 
 **Filtering** — new `filter_registers` function:
 
@@ -93,6 +103,8 @@ Three new optional arguments:
 
 Multiple flags combine as AND. Invalid category name prints available categories and exits with code 1.
 
+**`--address` parsing:** The value is a string in the form `"START-END"` (e.g. `"5000-5050"`). Parse in `main()` by splitting on `"-"` and converting both parts to `int`. On malformed input (not exactly two integer parts), print an error message and exit with code 1.
+
 ## Data Flow
 
 ```
@@ -122,17 +134,18 @@ main()
 
 ### `test_reader.py` additions
 - int16 sign conversion: raw `65036` (= -500 as int16) → stored as `-500`
-- String decode: mock returning bytes for "MyDevice\x00\x00" → `"MyDevice"`
+- String decode: mock whose `.registers` returns `[0x4D79, 0x4465, 0x7669, 0x6365, 0x0000, 0x0000]` → decoded string `"MyDevice"` (mock must return uint16 word list, not bytes)
 - `filter_registers` with `category="sensors"` returns only sensor addresses
 - `filter_registers` with `address_range=(5000, 5015)` returns correct subset
 - `filter_registers` with `name="power"` returns all registers with "power" in name
 - Combined filters AND correctly
+- `build_table` renders `StringRegister` value as string directly, unit column blank
 
 ## Files Touched
 
 | File | Change |
 |---|---|
-| `registers.py` | Add `StringRegister`, `STRING_REGISTERS`, `ALL_REGISTERS` |
+| `registers.py` | Add 80 new scalar `Register` entries, `StringRegister` dataclass, `STRING_REGISTERS`, `ALL_REGISTERS` |
 | `categories.py` | New file: `CATEGORIES` dict |
 | `reader.py` | int16 conversion, string reads, `filter_registers`, CLI args |
 | `tests/test_registers.py` | New tests for `StringRegister`, `ALL_REGISTERS` |
