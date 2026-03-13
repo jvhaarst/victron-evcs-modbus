@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "victron_evcs_modbus",
+  "project_id": "95637601-98f7-415f-9446-1d6796a98b47"
+}
