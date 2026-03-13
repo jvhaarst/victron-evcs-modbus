@@ -104,7 +104,7 @@ def mock_modbus_client_signed():
 
 def test_filter_no_filters_returns_all():
     result = filter_registers(ALL_REGISTERS)
-    assert len(result) == 115
+    assert len(result) == len(ALL_REGISTERS)
 
 
 def test_filter_by_category_sensors():
@@ -143,6 +143,11 @@ def test_filter_string_registers_included_in_address_range():
     result = filter_registers(ALL_REGISTERS, address_range=(5000, 5010))
     addresses = {r.address for r in result}
     assert 5001 in addresses  # Serial Id (StringRegister)
+
+
+def test_filter_invalid_category_raises():
+    with pytest.raises(ValueError, match="Unknown category"):
+        filter_registers(ALL_REGISTERS, category="nonexistent")
 
 
 @pytest.fixture
