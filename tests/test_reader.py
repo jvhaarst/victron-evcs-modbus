@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import pytest
 from reader import read_registers, format_value
 
@@ -24,6 +24,7 @@ def test_read_registers_returns_dict(mock_modbus_client):
     result = read_registers(mock_modbus_client, REGISTERS)
     assert isinstance(result, dict)
     assert 5000 in result
+    assert result[5000] == 0xC024
 
 
 def test_read_registers_handles_error_response(mock_modbus_client_error):
@@ -35,10 +36,16 @@ def test_read_registers_handles_error_response(mock_modbus_client_error):
 @pytest.fixture
 def mock_modbus_client():
     client = MagicMock()
-    response = MagicMock()
-    response.isError.return_value = False
-    response.registers = [0xC024] + [0] * 127  # 128 registers worth of zeros
-    client.read_holding_registers.return_value = response
+    # First chunk: 5000-5124 (125 registers), second chunk: 5125-5127 (3 registers)
+    response1 = MagicMock()
+    response1.isError.return_value = False
+    response1.registers = [0xC024] + [0] * 124  # 125 registers
+
+    response2 = MagicMock()
+    response2.isError.return_value = False
+    response2.registers = [0] * 3  # 3 registers
+
+    client.read_holding_registers.side_effect = [response1, response2]
     return client
 
 
@@ -47,5 +54,6 @@ def mock_modbus_client_error():
     client = MagicMock()
     response = MagicMock()
     response.isError.return_value = True
+    # Return error for both chunks
     client.read_holding_registers.return_value = response
     return client

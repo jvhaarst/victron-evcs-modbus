@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from pymodbus.client import ModbusTcpClient
 from rich.console import Console
@@ -20,8 +20,8 @@ def format_value(raw: int, scale: int) -> str:
     return str(round(raw / scale, max(0, len(str(scale)) - 1)))
 
 
-def read_registers(client, registers: Sequence[Register]) -> dict[int, int | None]:
-    """Read all registers in one batch request where possible.
+def read_registers(client: Any, registers: Sequence[Register]) -> dict[int, int | None]:
+    """Read registers in batch requests (max 125 per FC3 call).
 
     Returns a dict mapping address -> raw value (or None on error).
     """
@@ -29,26 +29,38 @@ def read_registers(client, registers: Sequence[Register]) -> dict[int, int | Non
         return {}
 
     addresses = sorted(r.address for r in registers)
-    start = addresses[0]
-    count = addresses[-1] - start + 1
+    result: dict[int, int | None] = {}
 
-    response = client.read_holding_registers(address=start, count=count, slave=1)
+    # Split into chunks of 125 to stay within the Modbus FC3 limit
+    chunk_start = 0
+    while chunk_start < len(addresses):
+        start_addr = addresses[chunk_start]
+        # Find how many consecutive addresses fit in one 125-register window
+        chunk_end = chunk_start
+        while chunk_end + 1 < len(addresses) and addresses[chunk_end + 1] - start_addr < 125:
+            chunk_end += 1
 
-    if response.isError():
-        return {addr: None for addr in addresses}
+        end_addr = addresses[chunk_end]
+        count = end_addr - start_addr + 1
 
-    raw_values = response.registers
-    result = {}
-    for addr in addresses:
-        offset = addr - start
-        if offset < len(raw_values):
-            result[addr] = raw_values[offset]
+        response = client.read_holding_registers(address=start_addr, count=count, slave=1)
+
+        if response.isError():
+            for addr in addresses[chunk_start:chunk_end + 1]:
+                result[addr] = None
         else:
-            result[addr] = None
+            raw_values = response.registers
+            for addr in addresses[chunk_start:chunk_end + 1]:
+                offset = addr - start_addr
+                result[addr] = raw_values[offset] if offset < len(raw_values) else None
+
+        chunk_start = chunk_end + 1
+
     return result
 
 
 def build_table(registers: Sequence[Register], values: dict[int, int | None]) -> Table:
+    """Build a Rich table displaying register addresses, names, scaled values, and units."""
     table = Table(title="Victron EVCS Register Values", show_header=True)
     table.add_column("Address", style="cyan", justify="right")
     table.add_column("Name", style="white")
