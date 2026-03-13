@@ -129,6 +129,11 @@ def filter_registers(
     result = list(registers)
 
     if category is not None:
+        if category not in CATEGORIES:
+            raise ValueError(
+                f"Unknown category {category!r}. "
+                f"Available: {', '.join(sorted(CATEGORIES))}"
+            )
         allowed = set(CATEGORIES[category])
         result = [r for r in result if r.address in allowed]
 
