@@ -54,3 +54,26 @@ REGISTERS = [
     Register(5122, "Onboard temperature",         "uint16", 10,  "°C"),
     Register(5127, "Power supply temperature",    "uint16", 10,  "°C"),
 ]
+
+
+@dataclass(frozen=True)
+class StringRegister:
+    address: int          # start address
+    name: str
+    register_count: int   # number of Modbus registers (each holds 2 bytes)
+    encoding: str = "utf-8"
+
+
+STRING_REGISTERS: list[StringRegister] = [
+    StringRegister(5001, "Serial Id",    6),   # 6 regs, 12 chars
+    StringRegister(5027, "Device name", 22),   # 22 regs, 44 bytes UTF-8
+]
+
+ALL_REGISTERS: list[Register | StringRegister] = (
+    [REGISTERS[0]]                    # 5000
+    + STRING_REGISTERS[:1]            # 5001 (Serial Id)
+    + REGISTERS[1:21]                 # 5007-5026 (indices 1-20, i.e. REGISTERS[1] is 5007, REGISTERS[20] is 5026)
+    + STRING_REGISTERS[1:]            # 5027 (Device name)
+    + REGISTERS[21:]                  # 5049 onwards (index 21 = address 5049)
+    # new scalar registers inserted in Task 2
+)

@@ -1,5 +1,5 @@
 import pytest
-from registers import REGISTERS, Register
+from registers import REGISTERS, Register, StringRegister, STRING_REGISTERS, ALL_REGISTERS
 
 
 def test_register_list_is_not_empty():
@@ -43,3 +43,32 @@ def test_all_registers_have_valid_data_type():
     valid = {"uint16", "int16"}
     for reg in REGISTERS:
         assert reg.data_type in valid, f"Register {reg.address} has data_type={reg.data_type!r}"
+
+
+def test_string_register_fields():
+    reg = StringRegister(5001, "Serial Id", 6)
+    assert reg.address == 5001
+    assert reg.name == "Serial Id"
+    assert reg.register_count == 6
+    assert reg.encoding == "utf-8"
+
+
+def test_string_register_custom_encoding():
+    reg = StringRegister(5001, "Test", 6, encoding="ascii")
+    assert reg.encoding == "ascii"
+
+
+def test_string_registers_list():
+    assert len(STRING_REGISTERS) == 2
+    addrs = [r.address for r in STRING_REGISTERS]
+    assert 5001 in addrs  # Serial Id
+    assert 5027 in addrs  # Device name
+
+
+def test_all_registers_count():
+    assert len(ALL_REGISTERS) == 115
+
+
+def test_no_duplicate_addresses_across_all():
+    addrs = [r.address for r in ALL_REGISTERS]
+    assert len(addrs) == len(set(addrs))
