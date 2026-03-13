@@ -1,8 +1,8 @@
 import struct
 from unittest.mock import MagicMock
 import pytest
-from registers import Register, StringRegister
-from reader import read_registers, build_table, format_value
+from registers import Register, StringRegister, ALL_REGISTERS
+from reader import read_registers, build_table, format_value, filter_registers
 
 
 # --- format_value tests (pure, no mocking needed) ---
@@ -100,6 +100,49 @@ def mock_modbus_client_signed():
     response.registers = [65036]
     client.read_holding_registers.return_value = response
     return client
+
+
+def test_filter_no_filters_returns_all():
+    result = filter_registers(ALL_REGISTERS)
+    assert len(result) == 115
+
+
+def test_filter_by_category_sensors():
+    result = filter_registers(ALL_REGISTERS, category="sensors")
+    addresses = {r.address for r in result}
+    assert 5121 in addresses  # humidity
+    assert 5127 in addresses  # power supply temp
+    assert 5015 not in addresses  # charger status — not in sensors
+
+
+def test_filter_by_address_range():
+    result = filter_registers(ALL_REGISTERS, address_range=(5000, 5010))
+    addresses = {r.address for r in result}
+    assert all(5000 <= a <= 5010 for a in addresses)
+    assert 5014 not in addresses
+
+
+def test_filter_by_name():
+    result = filter_registers(ALL_REGISTERS, name="power")
+    assert all("power" in r.name.lower() for r in result)
+    assert len(result) > 0
+
+
+def test_filter_combined_and():
+    result = filter_registers(
+        ALL_REGISTERS,
+        category="sensors",
+        name="temperature",
+    )
+    addresses = {r.address for r in result}
+    assert 5121 not in addresses  # humidity — not "temperature"
+    assert 5122 in addresses      # "Onboard temperature"
+
+
+def test_filter_string_registers_included_in_address_range():
+    result = filter_registers(ALL_REGISTERS, address_range=(5000, 5010))
+    addresses = {r.address for r in result}
+    assert 5001 in addresses  # Serial Id (StringRegister)
 
 
 @pytest.fixture
