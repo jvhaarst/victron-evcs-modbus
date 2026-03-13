@@ -63,6 +63,10 @@ class StringRegister:
     register_count: int   # number of Modbus registers (each holds 2 bytes)
     encoding: str = "utf-8"
 
+    def __post_init__(self) -> None:
+        if self.register_count <= 0:
+            raise ValueError(f"register_count must be > 0, got {self.register_count!r}")
+
 
 STRING_REGISTERS: list[StringRegister] = [
     StringRegister(5001, "Serial Id",    6),   # 6 regs, 12 chars

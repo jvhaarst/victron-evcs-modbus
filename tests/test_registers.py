@@ -65,6 +65,11 @@ def test_string_registers_list():
     assert 5027 in addrs  # Device name
 
 
+def test_string_register_rejects_non_positive_register_count():
+    with pytest.raises(ValueError, match="register_count must be > 0"):
+        StringRegister(5001, "Test", 0)
+
+
 def test_all_registers_count():
     assert len(ALL_REGISTERS) == 115
 
