@@ -1,6 +1,8 @@
+"""Victron EVCS Modbus TCP register reader."""
 from __future__ import annotations
 
 import argparse
+import struct
 import sys
 from typing import Any, TYPE_CHECKING
 
@@ -8,58 +10,85 @@ from pymodbus.client import ModbusTcpClient
 from rich.console import Console
 from rich.table import Table
 
-from registers import REGISTERS, Register
+from registers import ALL_REGISTERS, Register, StringRegister
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
 def format_value(raw: int, scale: int) -> str:
+    # scale=1 → integer, scale>1 → decimal with appropriate precision
     if scale == 1:
         return str(raw)
     return str(round(raw / scale, max(0, len(str(scale)) - 1)))
 
 
-def read_registers(client: Any, registers: Sequence[Register]) -> dict[int, int | None]:
-    """Read registers in batch requests (max 125 per FC3 call).
+def read_registers(
+    client: Any, registers: Sequence[Register | StringRegister]
+) -> dict[int, int | str | None]:
+    """Read registers in batch requests (max 125 per FC3 call) for scalars,
+    and individually for string registers.
 
     Returns a dict mapping address -> raw value (or None on error).
     """
     if not registers:
         return {}
 
-    addresses = sorted(r.address for r in registers)
-    result: dict[int, int | None] = {}
+    scalar_regs = [r for r in registers if isinstance(r, Register)]
+    string_regs = [r for r in registers if isinstance(r, StringRegister)]
+    result: dict[int, int | str | None] = {}
 
-    # Split into chunks of 125 to stay within the Modbus FC3 limit
-    chunk_start = 0
-    while chunk_start < len(addresses):
-        start_addr = addresses[chunk_start]
-        # Find how many consecutive addresses fit in one 125-register window
-        chunk_end = chunk_start
-        while chunk_end + 1 < len(addresses) and addresses[chunk_end + 1] - start_addr < 125:
-            chunk_end += 1
+    # Batch-read scalar registers (chunked to ≤125 addresses per FC3 call)
+    if scalar_regs:
+        addresses = sorted(r.address for r in scalar_regs)
+        chunk_start = 0
+        while chunk_start < len(addresses):
+            start_addr = addresses[chunk_start]
+            chunk_end = chunk_start
+            while (
+                chunk_end + 1 < len(addresses)
+                and addresses[chunk_end + 1] - start_addr < 125
+            ):
+                chunk_end += 1
+            end_addr = addresses[chunk_end]
+            count = end_addr - start_addr + 1
 
-        end_addr = addresses[chunk_end]
-        count = end_addr - start_addr + 1
+            response = client.read_holding_registers(
+                address=start_addr, count=count, device_id=1
+            )
+            if response.isError():
+                for addr in addresses[chunk_start : chunk_end + 1]:
+                    result[addr] = None
+            else:
+                raw_values = response.registers
+                for addr in addresses[chunk_start : chunk_end + 1]:
+                    offset = addr - start_addr
+                    raw = raw_values[offset] if offset < len(raw_values) else None
+                    if raw is not None:
+                        reg = next(r for r in scalar_regs if r.address == addr)
+                        if reg.data_type == "int16" and raw > 32767:
+                            raw -= 65536
+                    result[addr] = raw
+            chunk_start = chunk_end + 1
 
-        response = client.read_holding_registers(address=start_addr, count=count, device_id=1)
-
+    # Read string registers individually
+    for reg in string_regs:
+        response = client.read_holding_registers(
+            address=reg.address, count=reg.register_count, device_id=1
+        )
         if response.isError():
-            for addr in addresses[chunk_start:chunk_end + 1]:
-                result[addr] = None
+            result[reg.address] = None
         else:
-            raw_values = response.registers
-            for addr in addresses[chunk_start:chunk_end + 1]:
-                offset = addr - start_addr
-                result[addr] = raw_values[offset] if offset < len(raw_values) else None
-
-        chunk_start = chunk_end + 1
+            raw_bytes = struct.pack(f">{reg.register_count}H", *response.registers)
+            result[reg.address] = raw_bytes.rstrip(b"\x00").decode(reg.encoding)
 
     return result
 
 
-def build_table(registers: Sequence[Register], values: dict[int, int | None]) -> Table:
+def build_table(
+    registers: Sequence[Register | StringRegister],
+    values: dict[int, int | str | None],
+) -> Table:
     """Build a Rich table displaying register addresses, names, scaled values, and units."""
     table = Table(title="Victron EVCS Register Values", show_header=True)
     table.add_column("Address", style="cyan", justify="right")
@@ -71,20 +100,88 @@ def build_table(registers: Sequence[Register], values: dict[int, int | None]) ->
         raw = values.get(reg.address)
         if raw is None:
             value_str = "[red]error[/red]"
+            unit_str = ""
+        elif isinstance(reg, StringRegister):
+            value_str = str(raw)
+            unit_str = ""
         else:
             value_str = format_value(raw, reg.scale)
-        table.add_row(str(reg.address), reg.name, value_str, reg.unit)
+            unit_str = reg.unit
+        table.add_row(str(reg.address), reg.name, value_str, unit_str)
 
     return table
 
 
+def filter_registers(
+    registers: Sequence[Register | StringRegister],
+    *,
+    category: str | None = None,
+    address_range: tuple[int, int] | None = None,
+    name: str | None = None,
+) -> list[Register | StringRegister]:
+    """Filter registers by category, address range, and/or name substring.
+
+    Multiple filters combine as AND (intersection).
+    Returns all registers if no filters specified.
+    """
+    from categories import CATEGORIES
+
+    result = list(registers)
+
+    if category is not None:
+        allowed = set(CATEGORIES[category])
+        result = [r for r in result if r.address in allowed]
+
+    if address_range is not None:
+        start, end = address_range
+        result = [r for r in result if start <= r.address <= end]
+
+    if name is not None:
+        name_lower = name.lower()
+        result = [r for r in result if name_lower in r.name.lower()]
+
+    return result
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Read Victron EVCS registers over Modbus TCP")
+    parser = argparse.ArgumentParser(
+        description="Read Victron EVCS registers over Modbus TCP"
+    )
     parser.add_argument("host", help="IP address or hostname of the EVCS")
     parser.add_argument("--port", type=int, default=502, help="Modbus TCP port (default: 502)")
+    parser.add_argument("--category", help="Filter by category (e.g. sensors, status, config)")
+    parser.add_argument("--address", help="Filter by address range, e.g. 5000-5050")
+    parser.add_argument("--name", help="Filter by name substring (case-insensitive)")
     args = parser.parse_args()
 
     console = Console()
+
+    from categories import CATEGORIES
+
+    if args.category is not None and args.category not in CATEGORIES:
+        console.print(
+            f"[red]Unknown category '{args.category}'. "
+            f"Available: {', '.join(sorted(CATEGORIES))}[/red]"
+        )
+        sys.exit(1)
+
+    address_range = None
+    if args.address is not None:
+        parts = args.address.split("-")
+        if len(parts) != 2 or not all(p.strip().isdigit() for p in parts):
+            console.print(
+                f"[red]Invalid address range '{args.address}'. "
+                f"Format: START-END (e.g. 5000-5050)[/red]"
+            )
+            sys.exit(1)
+        address_range = (int(parts[0]), int(parts[1]))
+
+    registers = filter_registers(
+        ALL_REGISTERS,
+        category=args.category,
+        address_range=address_range,
+        name=args.name,
+    )
 
     client = ModbusTcpClient(host=args.host, port=args.port)
     if not client.connect():
@@ -92,11 +189,11 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        values = read_registers(client, REGISTERS)
+        values = read_registers(client, registers)
     finally:
         client.close()
 
-    table = build_table(REGISTERS, values)
+    table = build_table(registers, values)
     console.print(table)
 
 

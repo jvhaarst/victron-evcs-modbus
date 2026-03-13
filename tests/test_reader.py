@@ -1,6 +1,8 @@
+import struct
 from unittest.mock import MagicMock
 import pytest
-from reader import read_registers, format_value
+from registers import Register, StringRegister
+from reader import read_registers, build_table, format_value
 
 
 # --- format_value tests (pure, no mocking needed) ---
@@ -56,5 +58,57 @@ def mock_modbus_client_error():
     response = MagicMock()
     response.isError.return_value = True
     # Return error for both chunks
+    client.read_holding_registers.return_value = response
+    return client
+
+
+def test_int16_sign_conversion(mock_modbus_client_signed):
+    # Use a minimal register list with just one int16 register
+    int16_reg = Register(5071, "Test int16", "int16", 1, "W")
+    result = read_registers(mock_modbus_client_signed, [int16_reg])
+    assert result[5071] == -500
+
+
+def test_string_register_decode(mock_modbus_client_string):
+    str_reg = StringRegister(5001, "Serial Id", 6)
+    result = read_registers(mock_modbus_client_string, [str_reg])
+    assert result[5001] == "MyDevice"
+
+
+def test_build_table_string_register():
+    str_reg = StringRegister(5001, "Serial Id", 6)
+    values = {5001: "ABC123"}
+    table = build_table([str_reg], values)
+    # Table should render without error and have 4 columns
+    assert len(table.columns) == 4
+
+
+def test_build_table_string_register_none():
+    str_reg = StringRegister(5001, "Serial Id", 6)
+    values = {5001: None}
+    table = build_table([str_reg], values)
+    assert len(table.columns) == 4
+
+
+@pytest.fixture
+def mock_modbus_client_signed():
+    """Returns raw value 65036 for address 5071 (= -500 as int16)."""
+    client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = False
+    # Single register at 5071 with raw value 65036
+    response.registers = [65036]
+    client.read_holding_registers.return_value = response
+    return client
+
+
+@pytest.fixture
+def mock_modbus_client_string():
+    """Returns uint16 words spelling 'MyDevice' + null padding for a 6-register string."""
+    client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = False
+    # "MyDevice" = 0x4D79, 0x4465, 0x7669, 0x6365, then two null words
+    response.registers = [0x4D79, 0x4465, 0x7669, 0x6365, 0x0000, 0x0000]
     client.read_holding_registers.return_value = response
     return client
