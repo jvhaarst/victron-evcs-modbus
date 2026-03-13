@@ -1,3 +1,4 @@
+import pytest
 from registers import REGISTERS, Register
 
 
@@ -33,9 +34,9 @@ def test_addresses_are_unique():
     assert len(addresses) == len(set(addresses))
 
 
-def test_all_registers_have_positive_scale():
-    for reg in REGISTERS:
-        assert reg.scale > 0, f"Register {reg.address} has scale={reg.scale}"
+def test_register_rejects_non_positive_scale():
+    with pytest.raises(ValueError, match="scale must be > 0"):
+        Register(5000, "Test", "uint16", 0, "")
 
 
 def test_all_registers_have_valid_data_type():
