@@ -43,7 +43,7 @@ def read_registers(client: Any, registers: Sequence[Register]) -> dict[int, int 
         end_addr = addresses[chunk_end]
         count = end_addr - start_addr + 1
 
-        response = client.read_holding_registers(address=start_addr, count=count, slave=1)
+        response = client.read_holding_registers(address=start_addr, count=count, device_id=1)
 
         if response.isError():
             for addr in addresses[chunk_start:chunk_end + 1]:
