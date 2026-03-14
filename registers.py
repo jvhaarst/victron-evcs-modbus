@@ -16,6 +16,7 @@ class Register:
     default: Optional[int] = None  # factory default (None = no default in spec)
     access: Literal["R", "R/W"] = "R"
     notes: str = ""
+    range: tuple[float, float] | None = None  # display-value range (raw ÷ scale); None = no constraint  # noqa: A003
 
     def __post_init__(self) -> None:
         if self.scale <= 0:

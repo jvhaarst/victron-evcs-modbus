@@ -541,3 +541,38 @@ def test_write_cli_verify_mismatch_prints_warning(monkeypatch, capsys):
     cli.main()
     captured = capsys.readouterr()
     assert "Warning" in captured.out or "warning" in captured.out.lower()
+
+
+# --- validate_write_value range tests ---
+
+def test_validate_write_value_range_ok():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", range=(6.0, 32.0))
+    assert validate_write_value(reg, "10") == 10
+
+
+def test_validate_write_value_range_boundary_low():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", range=(6.0, 32.0))
+    assert validate_write_value(reg, "6") == 6
+
+
+def test_validate_write_value_range_boundary_high():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", range=(6.0, 32.0))
+    assert validate_write_value(reg, "32") == 32
+
+
+def test_validate_write_value_range_too_low():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", range=(6.0, 32.0))
+    with pytest.raises(ValueError, match="out of range"):
+        validate_write_value(reg, "5")
+
+
+def test_validate_write_value_range_too_high():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", range=(6.0, 32.0))
+    with pytest.raises(ValueError, match="out of range"):
+        validate_write_value(reg, "33")
+
+
+def test_validate_write_value_no_range():
+    # range=None means no range constraint beyond type bounds
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
+    assert validate_write_value(reg, "1000") == 1000

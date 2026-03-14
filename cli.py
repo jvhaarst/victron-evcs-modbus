@@ -178,8 +178,8 @@ def filter_changed(
 def validate_write_value(reg: Register | StringRegister, input_str: str) -> int | str:
     """Parse and validate a human-readable display value for writing to reg.
 
-    For Register: parses as float, multiplies by scale, rounds to int, validates
-    type bounds. Returns raw int ready for write_register.
+    For Register: parses as float, checks device range, multiplies by scale,
+    rounds to int, validates type bounds. Returns raw int ready for write_register.
     For StringRegister: validates UTF-8 byte length. Returns input_str unchanged.
     Raises ValueError with a descriptive message on invalid input.
     """
@@ -195,6 +195,12 @@ def validate_write_value(reg: Register | StringRegister, input_str: str) -> int 
         display_val = float(input_str)
     except ValueError:
         raise ValueError(f"Invalid number: {input_str!r}")
+    if reg.range is not None:
+        lo, hi = reg.range
+        if not (lo <= display_val <= hi):
+            raise ValueError(
+                f"Value out of range: {display_val} is not between {lo} and {hi}"
+            )
     raw = round(display_val * reg.scale)
     if reg.data_type == "uint16":
         if not (0 <= raw <= 65535):
