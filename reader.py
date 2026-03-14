@@ -89,25 +89,32 @@ def build_table(
     registers: Sequence[Register | StringRegister],
     values: dict[int, int | str | None],
 ) -> Table:
-    """Build a Rich table displaying register addresses, names, scaled values, and units."""
+    """Build a Rich table displaying register addresses, names, scaled values, units, and defaults."""
     table = Table(title="Victron EVCS Register Values", show_header=True)
     table.add_column("Address", style="cyan", justify="right")
     table.add_column("Name", style="white")
     table.add_column("Value", style="green", justify="right")
     table.add_column("Unit", style="yellow")
+    table.add_column("Default", style="dim", justify="right")
 
     for reg in registers:
         raw = values.get(reg.address)
         if raw is None:
             value_str = "[red]error[/red]"
             unit_str = ""
+            default_str = ""
         elif isinstance(reg, StringRegister):
             value_str = str(raw)
             unit_str = ""
+            default_str = ""
         else:
-            value_str = format_value(raw, reg.scale)
+            if reg.default is not None and raw != reg.default:
+                value_str = f"[yellow]{format_value(raw, reg.scale)}[/yellow]"
+            else:
+                value_str = format_value(raw, reg.scale)
             unit_str = reg.unit
-        table.add_row(str(reg.address), reg.name, value_str, unit_str)
+            default_str = format_value(reg.default, reg.scale) if reg.default is not None else ""
+        table.add_row(str(reg.address), reg.name, value_str, unit_str, default_str)
 
     return table
 
@@ -148,6 +155,24 @@ def filter_registers(
     return result
 
 
+def filter_changed(
+    registers: Sequence[Register | StringRegister],
+    values: dict[int, int | str | None],
+) -> list[Register | StringRegister]:
+    """Return only registers whose live value differs from their factory default.
+
+    Excludes: StringRegister entries, registers with no default (default=None),
+    registers whose value is None (read error).
+    """
+    return [
+        reg for reg in registers
+        if isinstance(reg, Register)
+        and reg.default is not None
+        and values.get(reg.address) is not None
+        and values.get(reg.address) != reg.default
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Read Victron EVCS registers over Modbus TCP"
@@ -157,6 +182,11 @@ def main() -> None:
     parser.add_argument("--category", help="Filter by category (e.g. sensors, status, config)")
     parser.add_argument("--address", help="Filter by address range, e.g. 5000-5050")
     parser.add_argument("--name", help="Filter by name substring (case-insensitive)")
+    parser.add_argument(
+        "--changed",
+        action="store_true",
+        help="Show only registers that differ from their factory default",
+    )
     args = parser.parse_args()
 
     console = Console()
@@ -198,7 +228,8 @@ def main() -> None:
     finally:
         client.close()
 
-    table = build_table(registers, values)
+    registers_to_display = filter_changed(registers, values) if args.changed else registers
+    table = build_table(registers_to_display, values)
     console.print(table)
 
 

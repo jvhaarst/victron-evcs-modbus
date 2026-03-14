@@ -2,7 +2,7 @@ import struct
 from unittest.mock import MagicMock
 import pytest
 from registers import Register, StringRegister, ALL_REGISTERS
-from reader import read_registers, build_table, format_value, filter_registers
+from reader import read_registers, build_table, format_value, filter_registers, filter_changed
 
 
 # --- format_value tests (pure, no mocking needed) ---
@@ -79,15 +79,15 @@ def test_build_table_string_register():
     str_reg = StringRegister(5001, "Serial Id", 6)
     values = {5001: "ABC123"}
     table = build_table([str_reg], values)
-    # Table should render without error and have 4 columns
-    assert len(table.columns) == 4
+    # Table should render without error and have 5 columns
+    assert len(table.columns) == 5
 
 
 def test_build_table_string_register_none():
     str_reg = StringRegister(5001, "Serial Id", 6)
     values = {5001: None}
     table = build_table([str_reg], values)
-    assert len(table.columns) == 4
+    assert len(table.columns) == 5
 
 
 @pytest.fixture
@@ -160,3 +160,115 @@ def mock_modbus_client_string():
     response.registers = [0x4D79, 0x4465, 0x7669, 0x6365, 0x0000, 0x0000]
     client.read_holding_registers.return_value = response
     return client
+
+
+# --- build_table default column tests ---
+
+def test_build_table_has_default_column():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", default=6)
+    values = {5016: 10}
+    table = build_table([reg], values)
+    assert len(table.columns) == 5
+
+
+def test_build_table_shows_formatted_default():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", default=6)
+    values = {5016: 10}
+    table = build_table([reg], values)
+    # Value differs from default → yellow markup in value cell
+    rendered = table.columns[2]._cells[0]  # Value column, first row
+    assert "[yellow]" in rendered
+    # Default column shows formatted default
+    default_cell = table.columns[4]._cells[0]  # Default column, first row
+    assert default_cell == "6"
+
+
+def test_build_table_zero_default_shows_zero():
+    reg = Register(5009, "Charge mode", "uint16", 1, "", default=0)
+    values = {5009: 0}
+    table = build_table([reg], values)
+    default_cell = table.columns[4]._cells[0]
+    assert default_cell == "0"
+    value_cell = table.columns[2]._cells[0]
+    assert "[yellow]" not in value_cell  # values match, no highlight
+
+
+def test_build_table_no_default_shows_blank():
+    reg = Register(5000, "Product ID", "uint16", 1, "")
+    values = {5000: 49189}
+    table = build_table([reg], values)
+    default_cell = table.columns[4]._cells[0]
+    assert default_cell == ""
+
+
+def test_build_table_value_matches_default_no_highlight():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", default=6)
+    values = {5016: 6}
+    table = build_table([reg], values)
+    value_cell = table.columns[2]._cells[0]
+    assert "[yellow]" not in value_cell
+
+
+# --- filter_changed tests ---
+
+def test_filter_changed_returns_changed():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", default=6)
+    result = filter_changed([reg], {5016: 10})
+    assert reg in result
+
+
+def test_filter_changed_excludes_matching():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", default=6)
+    result = filter_changed([reg], {5016: 6})
+    assert result == []
+
+
+def test_filter_changed_excludes_no_default():
+    reg = Register(5000, "Product ID", "uint16", 1, "")
+    result = filter_changed([reg], {5000: 999})
+    assert result == []
+
+
+def test_filter_changed_excludes_error():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", default=6)
+    result = filter_changed([reg], {5016: None})
+    assert result == []
+
+
+def test_filter_changed_excludes_string_registers():
+    str_reg = StringRegister(5001, "Serial Id", 6)
+    result = filter_changed([str_reg], {5001: "ABC123"})
+    assert result == []
+
+
+def test_changed_flag_calls_filter_changed(monkeypatch):
+    """--changed flag causes filter_changed to be called in main()."""
+    import reader
+
+    calls = []
+    orig = reader.filter_changed
+
+    def spy(registers, values):
+        calls.append(True)
+        return orig(registers, values)
+
+    monkeypatch.setattr(reader, "filter_changed", spy)
+
+    mock_client = MagicMock()
+    mock_client.connect.return_value = True
+
+    # Create a response that works for both scalar and string registers
+    def mock_read_holding_registers(address, count, device_id):
+        response = MagicMock()
+        response.isError.return_value = False
+        response.registers = [0] * count  # Return exactly as many registers as requested
+        return response
+
+    mock_client.read_holding_registers.side_effect = mock_read_holding_registers
+    monkeypatch.setattr(reader, "ModbusTcpClient", lambda **kw: mock_client)
+
+    import sys
+    sys.argv = ["reader.py", "127.0.0.1", "--changed"]
+    reader.main()
+
+    assert calls, "filter_changed was not called when --changed flag is set"
