@@ -464,7 +464,7 @@ def test_unit_id_cli_flag(monkeypatch):
 
     mock_client.read_holding_registers.side_effect = mock_read
     monkeypatch.setattr(cli, "ModbusTcpClient", lambda **kw: mock_client)
-    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--unit-id", "3"])
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--unit-id", "3", "--read"])
     cli.main()
     for call in mock_client.read_holding_registers.call_args_list:
         assert call[1]["device_id"] == 3

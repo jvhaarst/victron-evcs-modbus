@@ -328,18 +328,19 @@ def main() -> None:
     parser.add_argument("--address", help="Filter by address range, e.g. 5000-5050")
     parser.add_argument("--name", help="Filter by name substring (case-insensitive)")
 
+    parser.add_argument(
+        "--changed", action="store_true",
+        help="Show only registers that differ from factory default (implies --read; ignored with --write)",
+    )
+
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument(
-        "--changed", action="store_true",
-        help="Show only registers that differ from their factory default",
+        "--read", action="store_true",
+        help="Print register table and exit",
     )
     mode_group.add_argument(
         "--write", nargs=2, metavar=("ADDRESS", "VALUE"),
         help="Write VALUE to register at ADDRESS (e.g. --write 5016 10)",
-    )
-    mode_group.add_argument(
-        "--interactive", action="store_true",
-        help="Launch interactive TUI editor",
     )
     args = parser.parse_args()
 
@@ -388,18 +389,17 @@ def main() -> None:
         console.print(f"[red]Failed to read registers: {e}[/red]")
         sys.exit(1)
 
-    if args.interactive:
+    if args.read or args.changed:
+        client.close()
+        registers_to_display = filter_changed(registers, values) if args.changed else registers
+        table = build_table(registers_to_display, values)
+        console.print(table)
+    else:
         from tui import RegisterEditorApp
         try:
             RegisterEditorApp(client, registers, values, unit_id=args.unit_id).run()
         finally:
             client.close()
-        return
-
-    client.close()
-    registers_to_display = filter_changed(registers, values) if args.changed else registers
-    table = build_table(registers_to_display, values)
-    console.print(table)
 
 
 if __name__ == "__main__":
