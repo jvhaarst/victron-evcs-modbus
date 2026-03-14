@@ -1,5 +1,5 @@
 import pytest
-from registers import REGISTERS, Register, StringRegister, STRING_REGISTERS, ALL_REGISTERS
+from registers import REGISTERS, Register, StringRegister, STRING_REGISTERS, ALL_REGISTERS, _NEW_REGISTERS
 
 
 def test_register_list_is_not_empty():
@@ -77,3 +77,28 @@ def test_all_registers_count():
 def test_no_duplicate_addresses_across_all():
     addrs = [r.address for r in ALL_REGISTERS]
     assert len(addrs) == len(set(addrs))
+
+
+def test_register_default_is_none_by_default():
+    reg = Register(5000, "Test", "uint16", 1, "")
+    assert reg.default is None
+
+
+def test_register_with_default():
+    reg = Register(5000, "Test", "uint16", 1, "", default=6)
+    assert reg.default == 6
+
+
+def test_register_with_zero_default():
+    reg = Register(5000, "Test", "uint16", 1, "", default=0)
+    assert reg.default == 0  # 0 is valid, not None
+
+
+def test_registers_with_defaults_count():
+    count = sum(1 for r in REGISTERS if r.default is not None)
+    assert count == 11
+
+
+def test_new_registers_with_defaults_count():
+    count = sum(1 for r in _NEW_REGISTERS if r.default is not None)
+    assert count == 69
