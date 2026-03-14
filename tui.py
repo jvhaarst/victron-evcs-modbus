@@ -106,6 +106,41 @@ class ConfirmModal(ModalScreen[str]):
         self.dismiss(label)
 
 
+class NotesModal(ModalScreen[None]):
+    """Read-only modal displaying notes for a register."""
+
+    BINDINGS = [Binding("escape", "dismiss", "Close", show=False)]
+
+    DEFAULT_CSS = """
+    NotesModal {
+        align: center middle;
+    }
+    #notes-dialog {
+        background: $panel;
+        border: tall $primary;
+        padding: 1 2;
+        width: 70;
+        height: auto;
+        max-height: 80vh;
+    }
+    #notes-hint {
+        margin-top: 1;
+        color: $text-muted;
+    }
+    """
+
+    def __init__(self, reg: Register | StringRegister) -> None:
+        super().__init__()
+        self.reg = reg
+
+    def compose(self) -> ComposeResult:
+        text = self.reg.notes if self.reg.notes else "No notes available for this register."
+        with Vertical(id="notes-dialog"):
+            yield Label(f"[bold]{self.reg.name}[/bold]  [{self.reg.address}]")
+            yield Label(text, id="notes-text")
+            yield Label("Esc to close", id="notes-hint")
+
+
 class RegisterEditorApp(App):
     """Full-screen Textual app for browsing and editing Victron EVCS registers."""
 
@@ -113,6 +148,7 @@ class RegisterEditorApp(App):
         Binding("ctrl+s", "write_all", "Write", show=True),
         Binding("ctrl+r", "refresh_registers", "Refresh", show=True),
         Binding("ctrl+q", "quit_app", "Quit", show=True),
+        Binding("question_mark", "show_notes", "Notes", show=True),
     ]
 
     DEFAULT_CSS = """
@@ -272,6 +308,18 @@ class RegisterEditorApp(App):
             self.notify("Refreshed", severity="information")
         except Exception as e:
             self.notify(f"Refresh failed: {e}", severity="error")
+
+    def action_show_notes(self) -> None:
+        table = self.query_one(DataTable)
+        row_index = table.cursor_row
+        rows = table.ordered_rows
+        if not rows or row_index >= len(rows):
+            return
+        key = rows[row_index].key.value  # str like "5009"
+        reg = self._reg_by_key.get(key)
+        if reg is None:
+            return
+        self.push_screen(NotesModal(reg))
 
     def action_quit_app(self) -> None:
         if not self.pending:

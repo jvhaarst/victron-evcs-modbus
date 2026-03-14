@@ -171,3 +171,47 @@ async def test_tui_ctrl_s_write_failure_shows_error(rw_reg, mock_client):
         assert 5016 in pilot.app.pending
         # Error notification was raised
         assert any("5016" in msg or "failed" in msg.lower() for msg, _ in notifications)
+
+
+@pytest.mark.asyncio
+async def test_tui_question_mark_shows_notes_modal(mock_client):
+    from tui import RegisterEditorApp
+    reg = Register(5009, "Charge mode", "uint16", 1, "", default=0, access="R/W",
+                   notes="0 - manual, 1 - auto, 2 - scheduled")
+    registers = [reg]
+    values = {5009: 0}
+    async with RegisterEditorApp(mock_client, registers, values).run_test() as pilot:
+        await pilot.press("question_mark")
+        await pilot.pause()
+        assert len(pilot.app.screen_stack) == 2  # notes modal pushed
+
+
+@pytest.mark.asyncio
+async def test_tui_notes_modal_shows_text(mock_client):
+    from tui import RegisterEditorApp
+    reg = Register(5009, "Charge mode", "uint16", 1, "", default=0, access="R/W",
+                   notes="0 - manual, 1 - auto, 2 - scheduled")
+    registers = [reg]
+    values = {5009: 0}
+    async with RegisterEditorApp(mock_client, registers, values).run_test() as pilot:
+        await pilot.press("question_mark")
+        await pilot.pause()
+        from textual.widgets import Label
+        labels = pilot.app.screen.query(Label)
+        text = " ".join(str(label.content) for label in labels)
+        assert "0 - manual, 1 - auto, 2 - scheduled" in text
+
+
+@pytest.mark.asyncio
+async def test_tui_notes_modal_no_notes_shows_placeholder(mock_client):
+    from tui import RegisterEditorApp
+    reg = Register(5000, "Product ID", "uint16", 1, "", notes="")
+    registers = [reg]
+    values = {5000: 49189}
+    async with RegisterEditorApp(mock_client, registers, values).run_test() as pilot:
+        await pilot.press("question_mark")
+        await pilot.pause()
+        from textual.widgets import Label
+        labels = pilot.app.screen.query(Label)
+        text = " ".join(str(label.content) for label in labels)
+        assert "No notes available" in text
