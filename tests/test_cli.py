@@ -444,3 +444,22 @@ def test_write_register_uses_unit_id():
     client.write_register.return_value = response
     write_register(client, reg, 10, unit_id=3)
     client.write_register.assert_called_once_with(address=5016, value=10, device_id=3)
+
+
+def test_unit_id_cli_flag(monkeypatch):
+    import cli
+    mock_client = MagicMock()
+    mock_client.connect.return_value = True
+
+    def mock_read(address, count, device_id):
+        response = MagicMock()
+        response.isError.return_value = False
+        response.registers = [0] * count
+        return response
+
+    mock_client.read_holding_registers.side_effect = mock_read
+    monkeypatch.setattr(cli, "ModbusTcpClient", lambda **kw: mock_client)
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--unit-id", "3"])
+    cli.main()
+    for call in mock_client.read_holding_registers.call_args_list:
+        assert call[1]["device_id"] == 3

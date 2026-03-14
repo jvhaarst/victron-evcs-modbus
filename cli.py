@@ -272,7 +272,7 @@ def _handle_write(args: Any, console: "Console") -> None:
         sys.exit(1)
 
     try:
-        success = write_register(client, reg, raw_value)
+        success = write_register(client, reg, raw_value, unit_id=args.unit_id)
     finally:
         client.close()
 
@@ -295,6 +295,7 @@ def main() -> None:
     )
     parser.add_argument("host", help="IP address or hostname of the EVCS")
     parser.add_argument("--port", type=int, default=502, help="Modbus TCP port (default: 502)")
+    parser.add_argument("--unit-id", type=int, default=1, help="Modbus unit/slave ID (default: 1)")
     parser.add_argument("--category", help="Filter by category (e.g. sensors, status, config)")
     parser.add_argument("--address", help="Filter by address range, e.g. 5000-5050")
     parser.add_argument("--name", help="Filter by name substring (case-insensitive)")
@@ -353,7 +354,7 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        values = read_registers(client, registers)
+        values = read_registers(client, registers, unit_id=args.unit_id)
     except Exception as e:
         client.close()
         console.print(f"[red]Failed to read registers: {e}[/red]")
@@ -362,7 +363,7 @@ def main() -> None:
     if args.interactive:
         from tui import RegisterEditorApp
         try:
-            RegisterEditorApp(client, registers, values).run()
+            RegisterEditorApp(client, registers, values, unit_id=args.unit_id).run()
         finally:
             client.close()
         return
