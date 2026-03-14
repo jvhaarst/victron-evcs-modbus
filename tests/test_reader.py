@@ -2,7 +2,7 @@ import struct
 from unittest.mock import MagicMock
 import pytest
 from registers import Register, StringRegister, ALL_REGISTERS
-from reader import read_registers, build_table, format_value, filter_registers, filter_changed
+from reader import read_registers, build_table, format_value, filter_registers, filter_changed, validate_write_value, write_register
 
 
 # --- format_value tests (pure, no mocking needed) ---
@@ -272,3 +272,94 @@ def test_changed_flag_calls_filter_changed(monkeypatch):
     reader.main()
 
     assert calls, "filter_changed was not called when --changed flag is set"
+
+
+# --- validate_write_value tests ---
+
+def test_validate_write_value_uint16_valid():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
+    assert validate_write_value(reg, "10") == 10
+
+
+def test_validate_write_value_scaled():
+    reg = Register(5076, "Current step", "uint16", 10, "A", access="R/W")
+    assert validate_write_value(reg, "0.2") == 2
+
+
+def test_validate_write_value_uint16_out_of_range():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
+    with pytest.raises(ValueError):
+        validate_write_value(reg, "70000")
+
+
+def test_validate_write_value_int16_valid():
+    reg = Register(5071, "Grid power for start", "int16", 1, "W", access="R/W")
+    assert validate_write_value(reg, "-500") == -500
+
+
+def test_validate_write_value_int16_out_of_range():
+    reg = Register(5071, "Grid power for start", "int16", 1, "W", access="R/W")
+    with pytest.raises(ValueError):
+        validate_write_value(reg, "40000")
+
+
+def test_validate_write_value_string_valid():
+    reg = StringRegister(5027, "Device name", 22, access="R/W")
+    assert validate_write_value(reg, "My Charger") == "My Charger"
+
+
+def test_validate_write_value_string_too_long():
+    reg = StringRegister(5027, "Device name", 2, access="R/W")  # max 4 bytes
+    with pytest.raises(ValueError):
+        validate_write_value(reg, "Hello!")
+
+
+# --- write_register tests ---
+
+def test_write_register_scalar():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
+    mock_client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = False
+    mock_client.write_register.return_value = response
+    assert write_register(mock_client, reg, 10) is True
+    mock_client.write_register.assert_called_once_with(address=5016, value=10, device_id=1)
+
+
+def test_write_register_scalar_error():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
+    mock_client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = True
+    mock_client.write_register.return_value = response
+    assert write_register(mock_client, reg, 10) is False
+
+
+def test_write_register_int16_negative():
+    reg = Register(5071, "Grid power for start", "int16", 1, "W", access="R/W")
+    mock_client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = False
+    mock_client.write_register.return_value = response
+    write_register(mock_client, reg, -500)
+    mock_client.write_register.assert_called_once_with(address=5071, value=65036, device_id=1)
+
+
+def test_write_register_string():
+    reg = StringRegister(5027, "Device name", 22, access="R/W")
+    mock_client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = False
+    mock_client.write_registers.return_value = response
+    assert write_register(mock_client, reg, "My Charger") is True
+    mock_client.write_registers.assert_called_once()
+    call_kwargs = mock_client.write_registers.call_args[1]
+    assert call_kwargs["address"] == 5027
+    assert len(call_kwargs["values"]) == 22
+
+
+def test_write_register_exception_returns_false():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
+    mock_client = MagicMock()
+    mock_client.write_register.side_effect = Exception("connection lost")
+    assert write_register(mock_client, reg, 10) is False

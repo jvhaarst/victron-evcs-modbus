@@ -173,6 +173,70 @@ def filter_changed(
     ]
 
 
+def validate_write_value(reg: Register | StringRegister, input_str: str) -> int | str:
+    """Parse and validate a human-readable display value for writing to reg.
+
+    For Register: parses as float, multiplies by scale, rounds to int, validates
+    type bounds. Returns raw int ready for write_register.
+    For StringRegister: validates UTF-8 byte length. Returns input_str unchanged.
+    Raises ValueError with a descriptive message on invalid input.
+    """
+    if isinstance(reg, StringRegister):
+        encoded = input_str.encode("utf-8")
+        max_bytes = reg.register_count * 2
+        if len(encoded) > max_bytes:
+            raise ValueError(
+                f"String too long: {len(encoded)} bytes, max {max_bytes}"
+            )
+        return input_str
+    try:
+        display_val = float(input_str)
+    except ValueError:
+        raise ValueError(f"Invalid number: {input_str!r}")
+    raw = round(display_val * reg.scale)
+    if reg.data_type == "uint16":
+        if not (0 <= raw <= 65535):
+            raise ValueError(
+                f"Value out of range for uint16 (0–65535 raw, got {raw})"
+            )
+    else:  # int16
+        if not (-32768 <= raw <= 32767):
+            raise ValueError(
+                f"Value out of range for int16 (-32768–32767 raw, got {raw})"
+            )
+    return raw
+
+
+def write_register(
+    client: Any,
+    reg: Register | StringRegister,
+    value: int | str,
+) -> bool:
+    """Write a single register via Modbus FC6 (scalar) or FC16 (string).
+
+    value must be a validated raw int (Register) or str (StringRegister).
+    For int16 registers, value is a signed Python int (e.g. -500); wire
+    encoding (adding 65536) is handled internally.
+    Returns True on success, False on any failure (Modbus error or exception).
+    """
+    try:
+        if isinstance(reg, StringRegister):
+            raw_bytes = value.encode(reg.encoding)
+            padded = raw_bytes.ljust(reg.register_count * 2, b"\x00")
+            words = list(struct.unpack(f">{reg.register_count}H", padded))
+            response = client.write_registers(
+                address=reg.address, values=words, device_id=1
+            )
+        else:
+            wire_value = (value + 65536) if value < 0 else value
+            response = client.write_register(
+                address=reg.address, value=wire_value, device_id=1
+            )
+        return not response.isError()
+    except Exception:
+        return False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Read Victron EVCS registers over Modbus TCP"
