@@ -102,3 +102,35 @@ def test_registers_with_defaults_count():
 def test_new_registers_with_defaults_count():
     count = sum(1 for r in _NEW_REGISTERS if r.default is not None)
     assert count == 69
+
+
+def test_register_access_defaults_to_r():
+    reg = Register(5000, "Test", "uint16", 1, "")
+    assert reg.access == "R"
+
+
+def test_register_rw_access():
+    reg = Register(5000, "Test", "uint16", 1, "", access="R/W")
+    assert reg.access == "R/W"
+
+
+def test_string_register_access_defaults_to_r():
+    reg = StringRegister(5001, "Test", 6)
+    assert reg.access == "R"
+
+
+def test_registers_rw_count():
+    # All scalar Register entries across the full list
+    count = sum(1 for r in ALL_REGISTERS if isinstance(r, Register) and r.access == "R/W")
+    assert count == 76
+
+
+def test_new_registers_rw_count():
+    # Granular check: exactly 68 of the _NEW_REGISTERS are R/W
+    count = sum(1 for r in _NEW_REGISTERS if r.access == "R/W")
+    assert count == 68
+
+
+def test_device_name_is_rw():
+    reg = next(r for r in STRING_REGISTERS if r.address == 5027)
+    assert reg.access == "R/W"
