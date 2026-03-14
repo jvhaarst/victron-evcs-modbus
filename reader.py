@@ -239,6 +239,53 @@ def write_register(
         return False
 
 
+def _handle_write(args: Any, console: "Console") -> None:
+    """Handle the --write CLI flow."""
+    addr_str, value_str = args.write
+    try:
+        address = int(addr_str)
+    except ValueError:
+        console.print(f"[red]Invalid address: {addr_str!r}[/red]")
+        sys.exit(1)
+
+    reg = next((r for r in ALL_REGISTERS if r.address == address), None)
+    if reg is None:
+        console.print(f"[red]Address {address} not found in register list[/red]")
+        sys.exit(1)
+
+    if reg.access != "R/W":
+        console.print(f"[red]Register {address} ({reg.name}) is read-only[/red]")
+        sys.exit(1)
+
+    try:
+        raw_value = validate_write_value(reg, value_str)
+    except ValueError as e:
+        console.print(f"[red]Invalid value: {e}[/red]")
+        sys.exit(1)
+
+    client = ModbusTcpClient(host=args.host, port=args.port)
+    if not client.connect():
+        console.print(f"[red]Failed to connect to {args.host}:{args.port}[/red]")
+        sys.exit(1)
+
+    try:
+        success = write_register(client, reg, raw_value)
+    finally:
+        client.close()
+
+    if success:
+        if isinstance(reg, StringRegister):
+            display = str(raw_value)
+            unit = ""
+        else:
+            display = format_value(raw_value, reg.scale)
+            unit = f" {reg.unit}" if reg.unit else ""
+        console.print(f"[green]Written {address} ({reg.name}): {display}{unit}[/green]")
+    else:
+        console.print(f"[red]Write failed for address {address}[/red]")
+        sys.exit(1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Read Victron EVCS registers over Modbus TCP"
@@ -248,10 +295,19 @@ def main() -> None:
     parser.add_argument("--category", help="Filter by category (e.g. sensors, status, config)")
     parser.add_argument("--address", help="Filter by address range, e.g. 5000-5050")
     parser.add_argument("--name", help="Filter by name substring (case-insensitive)")
-    parser.add_argument(
-        "--changed",
-        action="store_true",
+
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        "--changed", action="store_true",
         help="Show only registers that differ from their factory default",
+    )
+    mode_group.add_argument(
+        "--write", nargs=2, metavar=("ADDRESS", "VALUE"),
+        help="Write VALUE to register at ADDRESS (e.g. --write 5016 10)",
+    )
+    mode_group.add_argument(
+        "--interactive", action="store_true",
+        help="Launch interactive TUI editor",
     )
     args = parser.parse_args()
 
@@ -277,6 +333,10 @@ def main() -> None:
             sys.exit(1)
         address_range = (int(parts[0]), int(parts[1]))
 
+    if args.write:
+        _handle_write(args, console)
+        return
+
     registers = filter_registers(
         ALL_REGISTERS,
         category=args.category,
@@ -291,9 +351,18 @@ def main() -> None:
 
     try:
         values = read_registers(client, registers)
-    finally:
+    except Exception as e:
         client.close()
+        console.print(f"[red]Failed to read registers: {e}[/red]")
+        sys.exit(1)
 
+    if args.interactive:
+        from tui import RegisterEditorApp
+        RegisterEditorApp(client, registers, values).run()
+        client.close()
+        return
+
+    client.close()
     registers_to_display = filter_changed(registers, values) if args.changed else registers
     table = build_table(registers_to_display, values)
     console.print(table)

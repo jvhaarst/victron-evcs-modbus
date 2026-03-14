@@ -1,4 +1,5 @@
 import struct
+import sys
 from unittest.mock import MagicMock
 import pytest
 from registers import Register, StringRegister, ALL_REGISTERS
@@ -364,3 +365,43 @@ def test_write_register_exception_returns_false():
     mock_client = MagicMock()
     mock_client.write_register.side_effect = Exception("connection lost")
     assert write_register(mock_client, reg, 10) is False
+
+
+# --- --write CLI tests ---
+
+def test_write_cli_flag(monkeypatch):
+    import reader
+    mock_client = MagicMock()
+    mock_client.connect.return_value = True
+    response = MagicMock()
+    response.isError.return_value = False
+    mock_client.write_register.return_value = response
+    monkeypatch.setattr(reader, "ModbusTcpClient", lambda **kw: mock_client)
+    monkeypatch.setattr(sys, "argv", ["reader.py", "127.0.0.1", "--write", "5016", "10"])
+    reader.main()
+    mock_client.write_register.assert_called_once_with(address=5016, value=10, device_id=1)
+
+
+def test_write_cli_invalid_address(monkeypatch, capsys):
+    import reader
+    monkeypatch.setattr(sys, "argv", ["reader.py", "127.0.0.1", "--write", "9999", "10"])
+    with pytest.raises(SystemExit) as exc:
+        reader.main()
+    assert exc.value.code == 1
+
+
+def test_write_cli_readonly_address(monkeypatch, capsys):
+    import reader
+    # 5000 (Product ID) is R-only
+    monkeypatch.setattr(sys, "argv", ["reader.py", "127.0.0.1", "--write", "5000", "10"])
+    with pytest.raises(SystemExit) as exc:
+        reader.main()
+    assert exc.value.code == 1
+
+
+def test_write_cli_out_of_range(monkeypatch, capsys):
+    import reader
+    monkeypatch.setattr(sys, "argv", ["reader.py", "127.0.0.1", "--write", "5016", "70000"])
+    with pytest.raises(SystemExit) as exc:
+        reader.main()
+    assert exc.value.code == 1
