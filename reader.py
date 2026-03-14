@@ -358,8 +358,10 @@ def main() -> None:
 
     if args.interactive:
         from tui import RegisterEditorApp
-        RegisterEditorApp(client, registers, values).run()
-        client.close()
+        try:
+            RegisterEditorApp(client, registers, values).run()
+        finally:
+            client.close()
         return
 
     client.close()
