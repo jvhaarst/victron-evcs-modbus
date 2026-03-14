@@ -215,3 +215,16 @@ async def test_tui_notes_modal_no_notes_shows_placeholder(mock_client):
         labels = pilot.app.screen.query(Label)
         text = " ".join(str(label.content) for label in labels)
         assert "No notes available" in text
+
+
+@pytest.mark.asyncio
+async def test_tui_unit_id_passed_to_write(mock_client):
+    from tui import RegisterEditorApp
+    reg = Register(5016, "Charging current", "uint16", 1, "A", default=6, access="R/W")
+    registers = [reg]
+    values = {5016: 10}
+    async with RegisterEditorApp(mock_client, registers, values, unit_id=3).run_test() as pilot:
+        pilot.app.pending[5016] = 16
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        mock_client.write_register.assert_called_once_with(address=5016, value=16, device_id=3)

@@ -165,6 +165,7 @@ class RegisterEditorApp(App):
         client: Any,
         registers: list[Register | StringRegister],
         values: dict[int, int | str | None],
+        unit_id: int = 1,
     ) -> None:
         super().__init__()
         self.modbus_client = client
@@ -172,6 +173,7 @@ class RegisterEditorApp(App):
         self.values: dict[int, int | str | None] = dict(values)
         self.pending: dict[int, int | str] = {}
         self._reg_by_key: dict[str, Register | StringRegister] = {}
+        self.unit_id = unit_id
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
@@ -265,7 +267,7 @@ class RegisterEditorApp(App):
             reg = self._reg_by_key.get(str(address))
             if reg is None:
                 continue
-            if write_register(self.modbus_client, reg, raw_value):
+            if write_register(self.modbus_client, reg, raw_value, unit_id=self.unit_id):
                 self.values[address] = raw_value
                 del self.pending[address]  # remove only successfully written
                 written.append(address)
@@ -302,7 +304,7 @@ class RegisterEditorApp(App):
 
     def _do_refresh(self) -> None:
         try:
-            new_values = read_registers(self.modbus_client, self.registers)
+            new_values = read_registers(self.modbus_client, self.registers, unit_id=self.unit_id)
             self.values = new_values
             self._rebuild_table()
             self.notify("Refreshed", severity="information")
