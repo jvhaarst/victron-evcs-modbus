@@ -423,3 +423,24 @@ def test_write_cli_out_of_range(monkeypatch, capsys):
     with pytest.raises(SystemExit) as exc:
         cli.main()
     assert exc.value.code == 1
+
+
+def test_read_registers_uses_unit_id():
+    client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = False
+    response.registers = [0]
+    client.read_holding_registers.return_value = response
+    reg = Register(5000, "Product ID", "uint16", 1, "")
+    read_registers(client, [reg], unit_id=3)
+    client.read_holding_registers.assert_called_with(address=5000, count=1, device_id=3)
+
+
+def test_write_register_uses_unit_id():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
+    client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = False
+    client.write_register.return_value = response
+    write_register(client, reg, 10, unit_id=3)
+    client.write_register.assert_called_once_with(address=5016, value=10, device_id=3)

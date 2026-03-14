@@ -24,7 +24,9 @@ def format_value(raw: int, scale: int) -> str:
 
 
 def read_registers(
-    client: Any, registers: Sequence[Register | StringRegister]
+    client: Any,
+    registers: Sequence[Register | StringRegister],
+    unit_id: int = 1,
 ) -> dict[int, int | str | None]:
     """Read registers in batch requests (max 125 per FC3 call) for scalars,
     and individually for string registers.
@@ -54,7 +56,7 @@ def read_registers(
             count = end_addr - start_addr + 1
 
             response = client.read_holding_registers(
-                address=start_addr, count=count, device_id=1
+                address=start_addr, count=count, device_id=unit_id
             )
             if response.isError():
                 for addr in addresses[chunk_start : chunk_end + 1]:
@@ -74,7 +76,7 @@ def read_registers(
     # Read string registers individually
     for reg in string_regs:
         response = client.read_holding_registers(
-            address=reg.address, count=reg.register_count, device_id=1
+            address=reg.address, count=reg.register_count, device_id=unit_id
         )
         if response.isError():
             result[reg.address] = None
@@ -211,6 +213,7 @@ def write_register(
     client: Any,
     reg: Register | StringRegister,
     value: int | str,
+    unit_id: int = 1,
 ) -> bool:
     """Write a single register via Modbus FC6 (scalar) or FC16 (string).
 
@@ -225,14 +228,14 @@ def write_register(
             padded = raw_bytes.ljust(reg.register_count * 2, b"\x00")
             words = list(struct.unpack(f"<{reg.register_count}H", padded))
             response = client.write_registers(
-                address=reg.address, values=words, device_id=1
+                address=reg.address, values=words, device_id=unit_id
             )
         else:
             if not isinstance(value, int):
                 return False
             wire_value = (value + 65536) if value < 0 else value
             response = client.write_register(
-                address=reg.address, value=wire_value, device_id=1
+                address=reg.address, value=wire_value, device_id=unit_id
             )
         return not response.isError()
     except Exception:
