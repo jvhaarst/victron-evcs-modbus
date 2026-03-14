@@ -1,7 +1,6 @@
 """Interactive TUI for browsing and editing Victron EVCS registers."""
 from __future__ import annotations
 
-import struct
 from typing import Any
 
 from textual.app import App, ComposeResult

@@ -155,7 +155,6 @@ async def test_tui_ctrl_r_with_pending_shows_dialog(rw_reg, mock_client):
 @pytest.mark.asyncio
 async def test_tui_ctrl_s_write_failure_shows_error(rw_reg, mock_client):
     from tui import RegisterEditorApp
-    from unittest.mock import patch
     error_response = MagicMock()
     error_response.isError.return_value = True
     mock_client.write_register.return_value = error_response
