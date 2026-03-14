@@ -576,3 +576,12 @@ def test_validate_write_value_no_range():
     # range=None means no range constraint beyond type bounds
     reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
     assert validate_write_value(reg, "1000") == 1000
+
+
+def test_validate_write_value_range_scaled():
+    # scale=10: display lo=0.1 → raw=1, display hi=6553.5 → raw=65535
+    reg = Register(5076, "Feed-in current step", "uint16", 10, "A", access="R/W", range=(0.1, 6553.5))
+    assert validate_write_value(reg, "0.1") == 1
+    assert validate_write_value(reg, "6553.5") == 65535
+    with pytest.raises(ValueError, match="out of range"):
+        validate_write_value(reg, "0.09")
