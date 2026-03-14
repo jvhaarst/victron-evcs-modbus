@@ -121,6 +121,7 @@ async def test_tui_ctrl_q_dialog_no_discards(rw_reg, mock_client):
         await pilot.click("#btn-no")
         await pilot.pause()
         mock_client.write_register.assert_not_called()
+        assert not pilot.app.is_running  # app exited without writing
 
 
 @pytest.mark.asyncio

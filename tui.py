@@ -282,7 +282,9 @@ class RegisterEditorApp(App):
         def handle_confirm(choice: str) -> None:
             if choice == "Yes":
                 self.action_write_all()
-                self.exit()
+                if not self.pending:  # all writes succeeded
+                    self.exit()
+                # else: write failed, stay in TUI (error notification already shown)
             elif choice == "No":
                 self.exit()
             # Cancel: do nothing (modal already dismissed)
