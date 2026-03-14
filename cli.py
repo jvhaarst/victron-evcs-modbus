@@ -214,13 +214,15 @@ def write_register(
     reg: Register | StringRegister,
     value: int | str,
     unit_id: int = 1,
-) -> bool:
+    verify: bool = False,
+) -> tuple[bool, bool | None]:
     """Write a single register via Modbus FC6 (scalar) or FC16 (string).
 
-    value must be a validated raw int (Register) or str (StringRegister).
-    For int16 registers, value is a signed Python int (e.g. -500); wire
-    encoding (adding 65536) is handled internally.
-    Returns True on success, False on any failure (Modbus error or exception).
+    Returns (success, verified):
+      (True,  None)  — write OK, verify not requested
+      (True,  True)  — write OK, read-back matched
+      (True,  False) — write OK, read-back mismatch (device may have clamped value)
+      (False, None)  — write failed
     """
     try:
         if isinstance(reg, StringRegister):
@@ -232,14 +234,32 @@ def write_register(
             )
         else:
             if not isinstance(value, int):
-                return False
+                return False, None
             wire_value = (value + 65536) if value < 0 else value
             response = client.write_register(
                 address=reg.address, value=wire_value, device_id=unit_id
             )
-        return not response.isError()
+        if response.isError():
+            return False, None
+        if not verify:
+            return True, None
+        try:
+            count = reg.register_count if isinstance(reg, StringRegister) else 1
+            rb = client.read_holding_registers(
+                address=reg.address, count=count, device_id=unit_id
+            )
+            if rb.isError():
+                return True, None
+            if isinstance(reg, StringRegister):
+                rb_bytes = struct.pack(f"<{reg.register_count}H", *rb.registers)
+                rb_str = rb_bytes.rstrip(b"\x00").decode(reg.encoding)
+                return True, rb_str == value
+            else:
+                return True, rb.registers[0] == wire_value
+        except Exception:
+            return True, None
     except Exception:
-        return False
+        return False, None
 
 
 def _handle_write(args: Any, console: "Console") -> None:

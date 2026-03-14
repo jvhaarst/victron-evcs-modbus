@@ -267,7 +267,8 @@ class RegisterEditorApp(App):
             reg = self._reg_by_key.get(str(address))
             if reg is None:
                 continue
-            if write_register(self.modbus_client, reg, raw_value, unit_id=self.unit_id):
+            success, _ = write_register(self.modbus_client, reg, raw_value, unit_id=self.unit_id)
+            if success:
                 self.values[address] = raw_value
                 del self.pending[address]  # remove only successfully written
                 written.append(address)

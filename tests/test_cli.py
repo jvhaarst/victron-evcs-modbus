@@ -323,7 +323,8 @@ def test_write_register_scalar():
     response = MagicMock()
     response.isError.return_value = False
     mock_client.write_register.return_value = response
-    assert write_register(mock_client, reg, 10) is True
+    success, _ = write_register(mock_client, reg, 10)
+    assert success is True
     mock_client.write_register.assert_called_once_with(address=5016, value=10, device_id=1)
 
 
@@ -333,7 +334,8 @@ def test_write_register_scalar_error():
     response = MagicMock()
     response.isError.return_value = True
     mock_client.write_register.return_value = response
-    assert write_register(mock_client, reg, 10) is False
+    success, _ = write_register(mock_client, reg, 10)
+    assert success is False
 
 
 def test_write_register_int16_negative():
@@ -342,8 +344,8 @@ def test_write_register_int16_negative():
     response = MagicMock()
     response.isError.return_value = False
     mock_client.write_register.return_value = response
-    result = write_register(mock_client, reg, -500)
-    assert result is True
+    success, _ = write_register(mock_client, reg, -500)
+    assert success is True
     mock_client.write_register.assert_called_once_with(address=5071, value=65036, device_id=1)
 
 
@@ -353,7 +355,8 @@ def test_write_register_string():
     response = MagicMock()
     response.isError.return_value = False
     mock_client.write_registers.return_value = response
-    assert write_register(mock_client, reg, "My Charger") is True
+    success, _ = write_register(mock_client, reg, "My Charger")
+    assert success is True
     mock_client.write_registers.assert_called_once()
     call_kwargs = mock_client.write_registers.call_args[1]
     assert call_kwargs["address"] == 5027
@@ -382,7 +385,8 @@ def test_write_register_exception_returns_false():
     reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
     mock_client = MagicMock()
     mock_client.write_register.side_effect = Exception("connection lost")
-    assert write_register(mock_client, reg, 10) is False
+    success, _ = write_register(mock_client, reg, 10)
+    assert success is False
 
 
 # --- --write CLI tests ---
@@ -442,7 +446,8 @@ def test_write_register_uses_unit_id():
     response = MagicMock()
     response.isError.return_value = False
     client.write_register.return_value = response
-    write_register(client, reg, 10, unit_id=3)
+    success, _ = write_register(client, reg, 10, unit_id=3)
+    assert success is True
     client.write_register.assert_called_once_with(address=5016, value=10, device_id=3)
 
 
@@ -463,3 +468,58 @@ def test_unit_id_cli_flag(monkeypatch):
     cli.main()
     for call in mock_client.read_holding_registers.call_args_list:
         assert call[1]["device_id"] == 3
+
+
+def test_write_register_returns_tuple():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
+    client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = False
+    client.write_register.return_value = response
+    success, verified = write_register(client, reg, 10)
+    assert success is True
+    assert verified is None
+
+
+def test_write_register_verify_match():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
+    client = MagicMock()
+    write_resp = MagicMock()
+    write_resp.isError.return_value = False
+    read_resp = MagicMock()
+    read_resp.isError.return_value = False
+    read_resp.registers = [10]
+    client.write_register.return_value = write_resp
+    client.read_holding_registers.return_value = read_resp
+    success, verified = write_register(client, reg, 10, verify=True)
+    assert success is True
+    assert verified is True
+
+
+def test_write_register_verify_mismatch():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
+    client = MagicMock()
+    write_resp = MagicMock()
+    write_resp.isError.return_value = False
+    read_resp = MagicMock()
+    read_resp.isError.return_value = False
+    read_resp.registers = [6]
+    client.write_register.return_value = write_resp
+    client.read_holding_registers.return_value = read_resp
+    success, verified = write_register(client, reg, 10, verify=True)
+    assert success is True
+    assert verified is False
+
+
+def test_write_register_verify_readback_error():
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
+    client = MagicMock()
+    write_resp = MagicMock()
+    write_resp.isError.return_value = False
+    read_resp = MagicMock()
+    read_resp.isError.return_value = True
+    client.write_register.return_value = write_resp
+    client.read_holding_registers.return_value = read_resp
+    success, verified = write_register(client, reg, 10, verify=True)
+    assert success is True
+    assert verified is None
