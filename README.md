@@ -31,15 +31,15 @@ uv run python cli.py <host> [options]
 | `--category CAT` | — | Filter by category |
 | `--address START-END` | — | Filter by address range |
 | `--name SUBSTR` | — | Filter by name substring |
-| `--changed` | — | Show only registers that differ from factory default |
+| `--read` | — | Print register table and exit (default: launch TUI) |
+| `--changed` | — | Show only registers that differ from factory default (implies `--read`) |
 | `--write ADDR VALUE` | — | Write a value to a register |
-| `--interactive` | — | Launch TUI editor |
 
-### Read registers (default)
+### Read registers (table output)
 
 ```bash
 # All 115 registers
-uv run python cli.py 192.168.0.128
+uv run python cli.py 192.168.0.128 --read
 
 # Filter by category
 uv run python cli.py 192.168.0.128 --category config
@@ -97,10 +97,11 @@ Warning: read-back value differs — device may have clamped the value
 
 Only R/W registers can be written. Values outside the register's documented range are rejected before sending.
 
-### Interactive TUI
+### Interactive TUI (default)
 
 ```bash
-uv run python cli.py <host> --interactive [--category ...] [--address ...] [--name ...]
+# Default: launches TUI editor
+uv run python cli.py <host> [--category ...] [--address ...] [--name ...]
 ```
 
 Launches a full-screen register editor:
