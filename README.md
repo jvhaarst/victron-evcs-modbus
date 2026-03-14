@@ -22,6 +22,19 @@ uv sync
 uv run python cli.py <host> [options]
 ```
 
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--port PORT` | `502` | Modbus TCP port |
+| `--unit-id ID` | `1` | Modbus unit/slave ID |
+| `--category CAT` | — | Filter by category |
+| `--address START-END` | — | Filter by address range |
+| `--name SUBSTR` | — | Filter by name substring |
+| `--changed` | — | Show only registers that differ from factory default |
+| `--write ADDR VALUE` | — | Write a value to a register |
+| `--interactive` | — | Launch TUI editor |
+
 ### Read registers (default)
 
 ```bash
@@ -39,6 +52,9 @@ uv run python cli.py 192.168.0.128 --name "feed in"
 
 # Show only registers that differ from their factory default
 uv run python cli.py 192.168.0.128 --changed
+
+# Use a non-default Modbus unit ID
+uv run python cli.py 192.168.0.128 --unit-id 2
 ```
 
 **Example output:**
@@ -72,7 +88,14 @@ uv run python cli.py 192.168.0.128 --write 5071 -500     # negative int16 value
 
 On success: `Written 5016 (Charging current): 10 A`
 
-Only R/W registers can be written. Writing a read-only address or an out-of-range value exits with an error.
+After each write the register is read back to confirm the device accepted the value. If the device clamped it, a warning is printed:
+
+```
+Written 5016 (Charging current): 10 A
+Warning: read-back value differs — device may have clamped the value
+```
+
+Only R/W registers can be written. Values outside the register's documented range are rejected before sending.
 
 ### Interactive TUI
 
@@ -103,13 +126,14 @@ Launches a full-screen register editor:
 | Ctrl+S | Write all pending changes |
 | Ctrl+R | Re-read all registers |
 | Ctrl+Q | Quit (prompts if pending writes) |
+| ? | Show notes for the focused register |
 
 ## Registers
 
 115 holding registers sourced from the official Victron spec:
 [`docs/specs/EVCS-Modbus-TCP-register-list-v3.8.xlsx`](docs/specs/EVCS-Modbus-TCP-register-list-v3.8.xlsx)
 
-Modbus unit-id: **1**, addresses: **5000–5140**. Scaled values (e.g. `A×10`, `kWh×100`, `°C×10`) are automatically converted for display and input.
+Modbus unit-id: **1** (configurable via `--unit-id`), addresses: **5000–5140**. Scaled values (e.g. `A×10`, `kWh×100`, `°C×10`) are automatically converted for display and input. R/W registers enforce the documented valid range at input time.
 
 ## Development
 
