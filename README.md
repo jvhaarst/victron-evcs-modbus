@@ -1,6 +1,6 @@
 # victron-evcs-modbus
 
-A small Python CLI that reads holding registers from a [Victron EV Charging Station (EVCS)](https://www.victronenergy.com/ev-charging) over Modbus TCP and displays them as a formatted table.
+A Python CLI for reading and writing holding registers on a [Victron EV Charging Station (EVCS)](https://www.victronenergy.com/ev-charging) over Modbus TCP.
 
 ## Requirements
 
@@ -19,47 +19,97 @@ uv sync
 ## Usage
 
 ```bash
-uv run python reader.py <host> [--port PORT]
+uv run python reader.py <host> [options]
 ```
 
-**Examples:**
+### Read registers (default)
 
 ```bash
-# Connect to EVCS at 192.168.0.128 on default port 502
+# All 115 registers
 uv run python reader.py 192.168.0.128
 
-# Custom port
-uv run python reader.py 192.168.0.128 --port 5020
+# Filter by category
+uv run python reader.py 192.168.0.128 --category config
+
+# Filter by address range
+uv run python reader.py 192.168.0.128 --address 5009-5026
+
+# Filter by name substring (case-insensitive)
+uv run python reader.py 192.168.0.128 --name "feed in"
+
+# Show only registers that differ from their factory default
+uv run python reader.py 192.168.0.128 --changed
 ```
 
 **Example output:**
 
 ```
-               Victron EVCS Register Values
-┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┓
-┃ Address ┃ Name                     ┃  Value ┃ Unit     ┃
-┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━┩
-│    5000 │ Product ID               │  49189 │          │
-│    5009 │ Charge mode              │      0 │          │
-│    5014 │ Total power              │      0 │ W        │
-│    5015 │ Charger status           │      0 │          │
-│    5018 │ Charging current actual  │    0.0 │ A        │
-│    5024 │ Total energy L           │ 117.88 │ kWh      │
-│    5127 │ Power supply temperature │   21.5 │ °C       │
-│    ...  │ ...                      │    ... │ ...      │
-└─────────┴──────────────────────────┴────────┴──────────┘
+                      Victron EVCS Register Values
+┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━┳━━━━━━━━━┓
+┃ Address ┃ Name                           ┃  Value ┃ Unit ┃ Default ┃
+┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━╇━━━━━━━━━┩
+│    5009 │ Charge mode                    │      0 │      │       0 │
+│    5016 │ Charging current               │     16 │ A    │       6 │  ← yellow if differs from default
+│    5017 │ Max current                    │     10 │ A    │      10 │
+│    5018 │ Charging current actual        │   16.0 │ A    │         │
+│     ... │ ...                            │    ... │      │     ... │
+└─────────┴────────────────────────────────┴────────┴──────┴─────────┘
 ```
 
-33 registers are read in total — see [`registers.py`](registers.py) for the full list.
+Values that differ from their factory default are highlighted in yellow.
+
+### Write a register
+
+```bash
+# Write a single value (non-interactive)
+uv run python reader.py <host> --write <address> <value>
+
+# Examples
+uv run python reader.py 192.168.0.128 --write 5016 10       # set charging current to 10 A
+uv run python reader.py 192.168.0.128 --write 5027 "My EV"  # set device name
+uv run python reader.py 192.168.0.128 --write 5071 -500     # negative int16 value
+```
+
+On success: `Written 5016 (Charging current): 10 A`
+
+Only R/W registers can be written. Writing a read-only address or an out-of-range value exits with an error.
+
+### Interactive TUI
+
+```bash
+uv run python reader.py <host> --interactive [--category ...] [--address ...] [--name ...]
+```
+
+Launches a full-screen register editor:
+
+```
+ Victron EVCS Register Editor
+ Address │ Name                  │ Value  │ Unit │ Default │ Access
+─────────────────────────────────────────────────────────────────────
+   5009  │ Charge mode           │ 0      │      │ 0       │ R/W
+ ► 5016  │ Charging current      │[ 16  ] │ A    │ 6       │ R/W   ← editing
+   5017  │ Max current           │ 10     │ A    │ 10      │ R/W
+   5018  │ Charging current act. │ 16.0   │ A    │         │ R     ← dimmed
+ * 5026  │ Charger position      │ 1      │      │ 0       │ R/W   ← pending
+─────────────────────────────────────────────────────────────────────
+ 3 pending  ^S Write  ^R Refresh  ^Q Quit
+```
+
+| Key | Action |
+|-----|--------|
+| Arrow keys | Navigate |
+| Enter | Edit (R/W rows only) |
+| Escape | Cancel edit |
+| Ctrl+S | Write all pending changes |
+| Ctrl+R | Re-read all registers |
+| Ctrl+Q | Quit (prompts if pending writes) |
 
 ## Registers
 
-The register definitions are sourced from the official Victron spec:
+115 holding registers sourced from the official Victron spec:
 [`docs/specs/EVCS-Modbus-TCP-register-list-v3.8.xlsx`](docs/specs/EVCS-Modbus-TCP-register-list-v3.8.xlsx)
 
-Modbus unit-id: **1**, addresses: **5000–5127**.
-
-Registers with scaling (e.g. `A*10`, `kWh*100`, `°C*10`) are automatically divided and displayed as real values.
+Modbus unit-id: **1**, addresses: **5000–5140**. Scaled values (e.g. `A×10`, `kWh×100`, `°C×10`) are automatically converted for display and input.
 
 ## Development
 
@@ -70,9 +120,3 @@ uv sync --dev
 # Run tests
 uv run pytest -v
 ```
-
-## Roadmap
-
-- Add string register support (Serial Id, Device name)
-- Handle `int16` signed registers (Feed-in power thresholds)
-- Add `--unit-id` CLI argument
