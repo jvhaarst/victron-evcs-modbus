@@ -268,7 +268,7 @@ def test_changed_flag_calls_filter_changed(monkeypatch):
     monkeypatch.setattr(reader, "ModbusTcpClient", lambda **kw: mock_client)
 
     import sys
-    sys.argv = ["reader.py", "127.0.0.1", "--changed"]
+    monkeypatch.setattr(sys, "argv", ["reader.py", "127.0.0.1", "--changed"])
     reader.main()
 
     assert calls, "filter_changed was not called when --changed flag is set"

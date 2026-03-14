@@ -168,8 +168,8 @@ def filter_changed(
         reg for reg in registers
         if isinstance(reg, Register)
         and reg.default is not None
-        and values.get(reg.address) is not None
-        and values.get(reg.address) != reg.default
+        and (raw := values.get(reg.address)) is not None
+        and raw != reg.default
     ]
 
 
