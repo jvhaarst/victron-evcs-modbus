@@ -263,19 +263,24 @@ class RegisterEditorApp(App):
             return
         failed_address = None
         written: list[int] = []
+        mismatch_count = 0
         for address, raw_value in list(self.pending.items()):
             reg = self._reg_by_key.get(str(address))
             if reg is None:
                 continue
-            success, _ = write_register(self.modbus_client, reg, raw_value, unit_id=self.unit_id)
+            success, verified = write_register(
+                self.modbus_client, reg, raw_value, unit_id=self.unit_id, verify=True
+            )
             if success:
                 self.values[address] = raw_value
-                del self.pending[address]  # remove only successfully written
+                del self.pending[address]
                 written.append(address)
                 self._refresh_row(address)
+                if verified is False:
+                    mismatch_count += 1
             else:
                 failed_address = address
-                break  # stop; failed register + all subsequent remain in self.pending
+                break
         self._update_subtitle()
         if failed_address is not None:
             self.notify(
@@ -283,7 +288,13 @@ class RegisterEditorApp(App):
                 severity="error",
             )
         elif written:
-            self.notify(f"Written {len(written)} register(s)", severity="information")
+            if mismatch_count:
+                self.notify(
+                    f"Written {len(written)} register(s) — ⚠ {mismatch_count} read-back mismatch(es)",
+                    severity="warning",
+                )
+            else:
+                self.notify(f"Written {len(written)} register(s)", severity="information")
 
     def action_refresh_registers(self) -> None:
         if not self.pending:

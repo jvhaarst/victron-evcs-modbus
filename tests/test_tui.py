@@ -228,3 +228,24 @@ async def test_tui_unit_id_passed_to_write(mock_client):
         await pilot.press("ctrl+s")
         await pilot.pause()
         mock_client.write_register.assert_called_once_with(address=5016, value=16, device_id=3)
+
+
+@pytest.mark.asyncio
+async def test_tui_write_mismatch_notification(mock_client):
+    from tui import RegisterEditorApp
+    reg = Register(5016, "Charging current", "uint16", 1, "A", default=6, access="R/W")
+    registers = [reg]
+    values = {5016: 10}
+    # Configure read-back to return a different value (device clamped to 6)
+    rb_response = MagicMock()
+    rb_response.isError.return_value = False
+    rb_response.registers = [6]
+    mock_client.read_holding_registers.return_value = rb_response
+    notifications = []
+    async with RegisterEditorApp(mock_client, registers, values).run_test() as pilot:
+        pilot.app.pending[5016] = 16
+        original_notify = pilot.app.notify
+        pilot.app.notify = lambda msg, **kw: notifications.append((msg, kw)) or original_notify(msg, **kw)
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert any("mismatch" in msg.lower() for msg, _ in notifications)
