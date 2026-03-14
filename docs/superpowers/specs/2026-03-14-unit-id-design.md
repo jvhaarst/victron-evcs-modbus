@@ -9,11 +9,13 @@ Make the Modbus unit/slave ID configurable via a `--unit-id` CLI argument (defau
 
 ## Current State
 
-- `device_id=1` hardcoded in 3 places in `cli.py`:
-  - `client.read_holding_registers(..., device_id=1)` in `read_registers()`
-  - `client.write_register(..., device_id=1)` in `write_register()`
-  - `client.write_registers(..., device_id=1)` in `write_register()`
-- `RegisterEditorApp` in `tui.py` calls `read_registers()` and `write_register()` without any unit ID concept
+- `device_id=1` hardcoded in 4 places in `cli.py`:
+  - `client.read_holding_registers(..., device_id=1)` in `read_registers()` scalar batch loop
+  - `client.read_holding_registers(..., device_id=1)` in `read_registers()` string register loop
+  - `client.write_register(..., device_id=1)` in `write_register()` scalar branch
+  - `client.write_registers(..., device_id=1)` in `write_register()` string branch
+- `_handle_write()` calls `write_register(client, reg, raw_value)` without unit ID (it has `args` available, so `args.unit_id` can be passed)
+- `RegisterEditorApp` in `tui.py` calls `read_registers()` (in `_do_refresh()`) and `write_register()` (in `action_write_all()`) without any unit ID concept
 
 ## Architecture
 
