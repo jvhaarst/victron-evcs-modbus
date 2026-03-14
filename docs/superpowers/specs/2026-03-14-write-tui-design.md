@@ -136,11 +136,11 @@ def write_register(
 
 - **Scalar `Register`** (uint16 or int16): FC6 (`client.write_register(address, wire_value, device_id=1)`). Wire value = `value + 65536` if `value < 0` else `value`.
 - **`StringRegister`**: encode `value` as UTF-8, right-pad with `\x00` to exactly `register_count * 2` bytes (null termination included), unpack as `register_count` big-endian uint16 words, send via FC16 (`client.write_registers(address, words, device_id=1)`).
-- Returns `True` on success, `False` on Modbus error response.
+- Returns `True` on success, `False` on any failure: Modbus error response (`response.isError() == True`) **or** any transport-level exception (e.g. `ConnectionException`, `ModbusIOException`). Exceptions are caught internally and result in `False`; they do not propagate to the caller.
 
 ### CLI flag rules (mutual exclusion)
 
-`--interactive`, `--write`, and `--changed` are mutually exclusive. Use an `argparse` mutually exclusive group. `--interactive` is also incompatible with `--changed`.
+`--interactive`, `--write`, and `--changed` are mutually exclusive — use a single `argparse` mutually exclusive group. `--category`, `--address`, and `--name` filters remain combinable with all three (they are not in the exclusive group). When used with `--write`, filters have no effect (the address is specified directly); they are silently ignored.
 
 ### `--write` CLI flag
 
@@ -149,7 +149,7 @@ uv run python reader.py <host> --write <address> <value>
 ```
 
 - `--write` takes `nargs=2` (address string, value string)
-- For negative int16 values, use `--` to end flag parsing: `reader.py <host> -- --write 5071 -500` **or** simply pass as a positional after `--write`: argparse handles negative numbers in `nargs=2` correctly when they follow the address string without ambiguity. No special handling required.
+- Argparse handles negative numbers in `nargs=2` correctly when they follow the address string — no special syntax required: `--write 5071 -500` works as-is
 - String values with spaces must be shell-quoted: `--write 5027 "My Charger"`
 
 Data flow in `main()`:
@@ -158,7 +158,7 @@ Data flow in `main()`:
 3. Check `reg.access == "R/W"`; exit 1 with error if read-only
 4. Call `validate_write_value(reg, value)`; exit 1 with error if invalid
 5. Connect, call `write_register(client, reg, raw_value)`
-6. Print success ("Written: address=5016 value=10") or error message; exit accordingly
+6. On success print the display value: `"Written 5016 (Charging current): 10 A"` (formatted with `format_value(raw, reg.scale)` and `reg.unit`); on error print failure message; exit accordingly
 
 ### `--interactive` CLI flag
 
@@ -193,7 +193,7 @@ uv run python reader.py <host> --interactive [--category ...] [--address ...] [-
 | Key | Action |
 |-----|--------|
 | Arrow keys | Navigate rows |
-| Enter | Begin editing value (R/W registers only; no-op on R) |
+| Enter | Begin editing (R/W registers only; no-op on R); **or confirm edit** when in edit mode |
 | Escape | Cancel edit, restore original value |
 | Ctrl+S | Write all pending changes to device |
 | Ctrl+R | Refresh (re-read all registers; prompts if pending writes exist) |
@@ -203,8 +203,9 @@ uv run python reader.py <host> --interactive [--category ...] [--address ...] [-
 
 - **R-only rows**: dimmed text; Enter does nothing
 - **Pending writes** (`*` prefix): highlighted colour until written
-- **Editing**: inline Input widget replaces value cell; input pre-filled with current display value; original value restored on Escape
+- **Editing**: inline Input widget replaces value cell; input pre-filled with current display value (from `format_value`); Enter confirms the edit (validates, marks pending); Escape cancels and restores original
 - **Footer bar**: always visible, shows key bindings and pending count
+- **Table construction**: the TUI builds its own `Textual` `DataTable` widget directly — it does **not** reuse `build_table` from `reader.py`. Columns: Address, Name, Value, Unit, Default, Access (6 columns)
 
 ### Quit confirmation dialog
 
