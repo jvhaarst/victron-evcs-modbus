@@ -157,8 +157,8 @@ def mock_modbus_client_string():
     client = MagicMock()
     response = MagicMock()
     response.isError.return_value = False
-    # "MyDevice" = 0x4D79, 0x4465, 0x7669, 0x6365, then two null words
-    response.registers = [0x4D79, 0x4465, 0x7669, 0x6365, 0x0000, 0x0000]
+    # "MyDevice" little-endian per word: struct.unpack("<H", b"My")=0x794D, etc.
+    response.registers = [0x794D, 0x6544, 0x6976, 0x6563, 0x0000, 0x0000]
     client.read_holding_registers.return_value = response
     return client
 
@@ -358,6 +358,24 @@ def test_write_register_string():
     call_kwargs = mock_client.write_registers.call_args[1]
     assert call_kwargs["address"] == 5027
     assert len(call_kwargs["values"]) == 22
+    # Verify little-endian byte order: "My" → struct.unpack("<H", b"My") = 0x794D
+    import struct as _struct
+    assert call_kwargs["values"][0] == _struct.unpack("<H", b"My")[0]
+
+
+def test_string_register_byte_order_read():
+    """Bytes within each 16-bit word are little-endian: low byte = first char."""
+    import struct as _struct
+    client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = False
+    # "EV" stored little-endian: low='E'=0x45, high='V'=0x56 → register=0x5645
+    response.registers = [_struct.unpack("<H", b"EV")[0], 0x0000, 0x0000,
+                          0x0000, 0x0000, 0x0000]
+    client.read_holding_registers.return_value = response
+    reg = StringRegister(5001, "Serial Id", 6)
+    result = read_registers(client, [reg])
+    assert result[5001] == "EV"
 
 
 def test_write_register_exception_returns_false():

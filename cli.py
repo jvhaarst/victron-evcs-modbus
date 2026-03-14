@@ -79,7 +79,7 @@ def read_registers(
         if response.isError():
             result[reg.address] = None
         else:
-            raw_bytes = struct.pack(f">{reg.register_count}H", *response.registers)
+            raw_bytes = struct.pack(f"<{reg.register_count}H", *response.registers)
             result[reg.address] = raw_bytes.rstrip(b"\x00").decode(reg.encoding)
 
     return result
@@ -223,7 +223,7 @@ def write_register(
         if isinstance(reg, StringRegister):
             raw_bytes = value.encode(reg.encoding)
             padded = raw_bytes.ljust(reg.register_count * 2, b"\x00")
-            words = list(struct.unpack(f">{reg.register_count}H", padded))
+            words = list(struct.unpack(f"<{reg.register_count}H", padded))
             response = client.write_registers(
                 address=reg.address, values=words, device_id=1
             )
