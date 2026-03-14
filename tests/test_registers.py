@@ -134,3 +134,28 @@ def test_new_registers_rw_count():
 def test_device_name_is_rw():
     reg = next(r for r in STRING_REGISTERS if r.address == 5027)
     assert reg.access == "R/W"
+
+
+def test_register_notes_defaults_to_empty():
+    reg = Register(5000, "Test", "uint16", 1, "")
+    assert reg.notes == ""
+
+
+def test_register_notes_value():
+    reg = Register(5000, "Test", "uint16", 1, "", notes="0 - stop, 1 - start")
+    assert reg.notes == "0 - stop, 1 - start"
+
+
+def test_string_register_notes_defaults_to_empty():
+    reg = StringRegister(5001, "Test", 6)
+    assert reg.notes == ""
+
+
+def test_charge_mode_notes():
+    reg = next(r for r in REGISTERS if r.address == 5009)
+    assert reg.notes == "0 - manual, 1 - auto, 2 - scheduled"
+
+
+def test_serial_id_notes():
+    reg = next(r for r in STRING_REGISTERS if r.address == 5001)
+    assert reg.notes == "6 registers, 12 characters"
