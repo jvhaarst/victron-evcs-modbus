@@ -3,7 +3,7 @@ import sys
 from unittest.mock import MagicMock
 import pytest
 from registers import Register, StringRegister, ALL_REGISTERS
-from reader import read_registers, build_table, format_value, filter_registers, filter_changed, validate_write_value, write_register
+from cli import read_registers, build_table, format_value, filter_registers, filter_changed, validate_write_value, write_register
 
 
 # --- format_value tests (pure, no mocking needed) ---
@@ -244,16 +244,16 @@ def test_filter_changed_excludes_string_registers():
 
 def test_changed_flag_calls_filter_changed(monkeypatch):
     """--changed flag causes filter_changed to be called in main()."""
-    import reader
+    import cli
 
     calls = []
-    orig = reader.filter_changed
+    orig = cli.filter_changed
 
     def spy(registers, values):
         calls.append(True)
         return orig(registers, values)
 
-    monkeypatch.setattr(reader, "filter_changed", spy)
+    monkeypatch.setattr(cli, "filter_changed", spy)
 
     mock_client = MagicMock()
     mock_client.connect.return_value = True
@@ -266,11 +266,11 @@ def test_changed_flag_calls_filter_changed(monkeypatch):
         return response
 
     mock_client.read_holding_registers.side_effect = mock_read_holding_registers
-    monkeypatch.setattr(reader, "ModbusTcpClient", lambda **kw: mock_client)
+    monkeypatch.setattr(cli, "ModbusTcpClient", lambda **kw: mock_client)
 
     import sys
-    monkeypatch.setattr(sys, "argv", ["reader.py", "127.0.0.1", "--changed"])
-    reader.main()
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--changed"])
+    cli.main()
 
     assert calls, "filter_changed was not called when --changed flag is set"
 
@@ -370,38 +370,38 @@ def test_write_register_exception_returns_false():
 # --- --write CLI tests ---
 
 def test_write_cli_flag(monkeypatch):
-    import reader
+    import cli
     mock_client = MagicMock()
     mock_client.connect.return_value = True
     response = MagicMock()
     response.isError.return_value = False
     mock_client.write_register.return_value = response
-    monkeypatch.setattr(reader, "ModbusTcpClient", lambda **kw: mock_client)
-    monkeypatch.setattr(sys, "argv", ["reader.py", "127.0.0.1", "--write", "5016", "10"])
-    reader.main()
+    monkeypatch.setattr(cli, "ModbusTcpClient", lambda **kw: mock_client)
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--write", "5016", "10"])
+    cli.main()
     mock_client.write_register.assert_called_once_with(address=5016, value=10, device_id=1)
 
 
 def test_write_cli_invalid_address(monkeypatch, capsys):
-    import reader
-    monkeypatch.setattr(sys, "argv", ["reader.py", "127.0.0.1", "--write", "9999", "10"])
+    import cli
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--write", "9999", "10"])
     with pytest.raises(SystemExit) as exc:
-        reader.main()
+        cli.main()
     assert exc.value.code == 1
 
 
 def test_write_cli_readonly_address(monkeypatch, capsys):
-    import reader
+    import cli
     # 5000 (Product ID) is R-only
-    monkeypatch.setattr(sys, "argv", ["reader.py", "127.0.0.1", "--write", "5000", "10"])
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--write", "5000", "10"])
     with pytest.raises(SystemExit) as exc:
-        reader.main()
+        cli.main()
     assert exc.value.code == 1
 
 
 def test_write_cli_out_of_range(monkeypatch, capsys):
-    import reader
-    monkeypatch.setattr(sys, "argv", ["reader.py", "127.0.0.1", "--write", "5016", "70000"])
+    import cli
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--write", "5016", "70000"])
     with pytest.raises(SystemExit) as exc:
-        reader.main()
+        cli.main()
     assert exc.value.code == 1

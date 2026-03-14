@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 from registers import Register, StringRegister
-from reader import format_value
+from cli import format_value
 
 
 @pytest.fixture

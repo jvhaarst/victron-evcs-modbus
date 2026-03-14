@@ -9,7 +9,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label
 
-from reader import format_value, read_registers, validate_write_value, write_register
+from cli import format_value, read_registers, validate_write_value, write_register
 from registers import Register, StringRegister
 
 

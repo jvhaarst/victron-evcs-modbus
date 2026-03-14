@@ -19,26 +19,26 @@ uv sync
 ## Usage
 
 ```bash
-uv run python reader.py <host> [options]
+uv run python cli.py <host> [options]
 ```
 
 ### Read registers (default)
 
 ```bash
 # All 115 registers
-uv run python reader.py 192.168.0.128
+uv run python cli.py 192.168.0.128
 
 # Filter by category
-uv run python reader.py 192.168.0.128 --category config
+uv run python cli.py 192.168.0.128 --category config
 
 # Filter by address range
-uv run python reader.py 192.168.0.128 --address 5009-5026
+uv run python cli.py 192.168.0.128 --address 5009-5026
 
 # Filter by name substring (case-insensitive)
-uv run python reader.py 192.168.0.128 --name "feed in"
+uv run python cli.py 192.168.0.128 --name "feed in"
 
 # Show only registers that differ from their factory default
-uv run python reader.py 192.168.0.128 --changed
+uv run python cli.py 192.168.0.128 --changed
 ```
 
 **Example output:**
@@ -62,12 +62,12 @@ Values that differ from their factory default are highlighted in yellow.
 
 ```bash
 # Write a single value (non-interactive)
-uv run python reader.py <host> --write <address> <value>
+uv run python cli.py <host> --write <address> <value>
 
 # Examples
-uv run python reader.py 192.168.0.128 --write 5016 10       # set charging current to 10 A
-uv run python reader.py 192.168.0.128 --write 5027 "My EV"  # set device name
-uv run python reader.py 192.168.0.128 --write 5071 -500     # negative int16 value
+uv run python cli.py 192.168.0.128 --write 5016 10       # set charging current to 10 A
+uv run python cli.py 192.168.0.128 --write 5027 "My EV"  # set device name
+uv run python cli.py 192.168.0.128 --write 5071 -500     # negative int16 value
 ```
 
 On success: `Written 5016 (Charging current): 10 A`
@@ -77,7 +77,7 @@ Only R/W registers can be written. Writing a read-only address or an out-of-rang
 ### Interactive TUI
 
 ```bash
-uv run python reader.py <host> --interactive [--category ...] [--address ...] [--name ...]
+uv run python cli.py <host> --interactive [--category ...] [--address ...] [--name ...]
 ```
 
 Launches a full-screen register editor:
