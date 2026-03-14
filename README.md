@@ -42,13 +42,13 @@ uv run python cli.py <host> [options]
 uv run python cli.py 192.168.0.128 --read
 
 # Filter by category
-uv run python cli.py 192.168.0.128 --category config
+uv run python cli.py 192.168.0.128 --read --category config
 
 # Filter by address range
-uv run python cli.py 192.168.0.128 --address 5009-5026
+uv run python cli.py 192.168.0.128 --read --address 5009-5026
 
 # Filter by name substring (case-insensitive)
-uv run python cli.py 192.168.0.128 --name "feed in"
+uv run python cli.py 192.168.0.128 --read --name "feed in"
 
 # Show only registers that differ from their factory default (--changed implies --read)
 uv run python cli.py 192.168.0.128 --changed
