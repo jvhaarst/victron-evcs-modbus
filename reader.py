@@ -228,6 +228,8 @@ def write_register(
                 address=reg.address, values=words, device_id=1
             )
         else:
+            if not isinstance(value, int):
+                return False
             wire_value = (value + 65536) if value < 0 else value
             response = client.write_register(
                 address=reg.address, value=wire_value, device_id=1

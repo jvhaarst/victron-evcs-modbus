@@ -341,7 +341,8 @@ def test_write_register_int16_negative():
     response = MagicMock()
     response.isError.return_value = False
     mock_client.write_register.return_value = response
-    write_register(mock_client, reg, -500)
+    result = write_register(mock_client, reg, -500)
+    assert result is True
     mock_client.write_register.assert_called_once_with(address=5071, value=65036, device_id=1)
 
 
