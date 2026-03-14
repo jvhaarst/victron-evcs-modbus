@@ -39,15 +39,15 @@ def test_read_registers_handles_error_response(mock_modbus_client_error):
 @pytest.fixture
 def mock_modbus_client():
     client = MagicMock()
-    # Chunk 1: address=5000, count=123 (registers 5000-5122)
+    # Chunk 1: address=5000, count=125 (registers 5000-5124)
     response1 = MagicMock()
     response1.isError.return_value = False
-    response1.registers = [0xC024] + [0] * 122  # 123 registers
+    response1.registers = [0xC024] + [0] * 124  # 125 registers
 
-    # Chunk 2: address=5127, count=1 (register 5127 only)
+    # Chunk 2: address=5125, count=16 (registers 5125-5140)
     response2 = MagicMock()
     response2.isError.return_value = False
-    response2.registers = [0] * 1  # 1 register
+    response2.registers = [0] * 16  # 16 registers
 
     client.read_holding_registers.side_effect = [response1, response2]
     return client

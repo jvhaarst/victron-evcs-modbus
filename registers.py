@@ -47,39 +47,6 @@ REGISTERS = [
     Register(5026, "Charger position",            "uint16", 1,   "",        default=0,  access="R/W", notes="0 - Inverter Ac Out, 1 - Inverter Ac Input", range=(0.0, 1.0)),
     Register(5049, "Charger autostart",           "uint16", 1,   "",        default=1,  access="R/W", notes="0 - autostart disabled, 1 - autostart enabled", range=(0.0, 1.0)),
     Register(5050, "Control via display",         "uint16", 1,   "",        default=1,  access="R/W", notes="0 - control disabled, 1 - control enabled", range=(0.0, 1.0)),
-    Register(5062, "Min current",                 "uint16", 1,   "A",       default=6,  access="R/W", notes="A", range=(6.0, 31.0)),
-    Register(5094, "EVCS errors L",               "uint16", 1,   "",        default=0,  notes="Bitmask for EVCS errors. 1 - active, 0 - not active. Low part."),
-    Register(5095, "EVCS errors H",               "uint16", 1,   "",        default=0,  notes="Bitmask for EVCS errors. 1 - active, 0 - not active. High part"),
-    Register(5109, "Detected car phases",         "uint16", 1,   "",        default=1,  notes="Detected car phases. Updated during car charging. Reset to 1 after car disconnect"),
-    Register(5111, "UP-time H",                   "uint16", 1,   "s",       notes="UP-time in seconds. High part"),
-    Register(5112, "UP-time L",                   "uint16", 1,   "s",       notes="UP-time in seconds. Low part"),
-    Register(5113, "Reboot counter",              "uint16", 1,   "",        notes="Reboot counter"),
-    Register(5121, "Onboard humidity",            "uint16", 10,  "%",       notes="%*10. for v2 only"),
-    Register(5122, "Onboard temperature",         "uint16", 10,  "°C",      notes="°C*10. for v2 only"),
-    Register(5127, "Power supply temperature",    "uint16", 10,  "°C",      default=0,  notes="°C*10"),
-]
-
-
-@dataclass(frozen=True)
-class StringRegister:
-    address: int          # start address
-    name: str
-    register_count: int   # number of Modbus registers (each holds 2 bytes)
-    encoding: str = "utf-8"
-    access: Literal["R", "R/W"] = "R"
-    notes: str = ""
-
-    def __post_init__(self) -> None:
-        if self.register_count <= 0:
-            raise ValueError(f"register_count must be > 0, got {self.register_count!r}")
-
-
-STRING_REGISTERS: list[StringRegister] = [
-    StringRegister(5001, "Serial Id",    6,  notes="6 registers, 12 characters"),
-    StringRegister(5027, "Device name", 22, access="R/W", notes="UTF-8 encoded string, 22 registers, 44 bytes"),
-]
-
-_NEW_REGISTERS: list[Register] = [
     Register(5051, "Display active backlight",                                     "uint16", 1,   "%",    default=100,   access="R/W", notes="%", range=(1.0, 100.0)),
     Register(5052, "Display idle backlight",                                       "uint16", 1,   "%",    default=7,     access="R/W", notes="%", range=(1.0, 100.0)),
     Register(5053, "Display active timeout",                                       "uint16", 1,   "s",    default=120,   access="R/W", notes="s", range=(1.0, 65535.0)),
@@ -91,6 +58,7 @@ _NEW_REGISTERS: list[Register] = [
     Register(5059, "Phase switching timeout",                                      "uint16", 1,   "s",    default=60,    access="R/W", notes="s. Related to 'multiple relay charging' feature.", range=(1.0, 65535.0)),
     Register(5060, "CP Calibration command",                                       "uint16", 1,   "",                    access="R/W", notes="1 - calibration start / 2 - car is connected / 3 - reserved / 4 - calibration abort", range=(1.0, 4.0)),
     Register(5061, "CP Calibration status",                                        "uint16", 1,   "",                    notes="0 - idle / 1 - in progress / 2 - successfully / 3 - failed / 4 - aborted"),
+    Register(5062, "Min current",                 "uint16", 1,   "A",       default=6,  access="R/W", notes="A", range=(6.0, 31.0)),
     Register(5063, "Power calibration offset",                                     "uint16", 1,   "",     default=100,   access="R/W", notes="From 0.6 to 1.4 multiplied by 100", range=(60.0, 140.0)),
     Register(5064, "EVCS reset",                                                   "uint16", 1,   "",                    access="R/W", notes="1 - reset command for EVCS"),
     Register(5065, "Auto mode type",                                               "uint16", 1,   "",     default=1,     access="R/W", notes="0 - Feed in, 1 - Battery powered", range=(0.0, 1.0)),
@@ -122,6 +90,8 @@ _NEW_REGISTERS: list[Register] = [
     Register(5091, "'Battery powered'. Grid power for 'feed in' detection",        "int16",  1,   "W",    default=-1500, access="R/W", notes="W", range=(-32768.0, -1.0)),
     Register(5092, "'Battery powered'. Start delay max",                           "uint16", 1,   "s",    default=300,   access="R/W", notes="s", range=(1.0, 65535.0)),
     Register(5093, "ON grid detection threshold",                                  "uint16", 1,   "W",    default=0,     access="R/W", notes="W"),
+    Register(5094, "EVCS errors L",               "uint16", 1,   "",        default=0,  notes="Bitmask for EVCS errors. 1 - active, 0 - not active. Low part."),
+    Register(5095, "EVCS errors H",               "uint16", 1,   "",        default=0,  notes="Bitmask for EVCS errors. 1 - active, 0 - not active. High part"),
     Register(5096, "EVCS warnings L",                                              "uint16", 1,   "",     default=0,     notes="Bitmask for EVCS warnings. 1 - active, 0 - not active. Low part."),
     Register(5097, "EVCS warnings H",                                              "uint16", 1,   "",     default=0,     notes="Bitmask for EVCS warnings. 1 - active, 0 - not active. High part"),
     Register(5098, "EVCS notification code",                                       "uint16", 1,   "",     default=0,     notes="0 - no any notification, some value - EVCS notification code"),
@@ -135,7 +105,11 @@ _NEW_REGISTERS: list[Register] = [
     Register(5106, "Overload protection ON/OFF timeout",                           "uint16", 1,   "s",    default=10,    access="R/W", notes="s. Timeout before returning back charging", range=(1.0, 65535.0)),
     Register(5107, "Overload protection cut-off timeout",                          "uint16", 1,   "s",    default=5,     access="R/W", notes="s. Timeout before charging cut-off.", range=(1.0, 65535.0)),
     Register(5108, "Relays OFF delay",                                             "uint16", 1,   "ms",   default=2000,  access="R/W", notes="ms. Delay before all relays off"),
+    Register(5109, "Detected car phases",         "uint16", 1,   "",        default=1,  notes="Detected car phases. Updated during car charging. Reset to 1 after car disconnect"),
     Register(5110, "Randomized delay max",                                         "uint16", 1,   "",     default=600,   access="R/W", notes="Randomized delay max value. Only for UK profile. The delay is applied every time the charger is operated (either from a scheduled charge or manually initiated charge) and each time the rate of charge changes."),
+    Register(5111, "UP-time H",                   "uint16", 1,   "s",       notes="UP-time in seconds. High part"),
+    Register(5112, "UP-time L",                   "uint16", 1,   "s",       notes="UP-time in seconds. Low part"),
+    Register(5113, "Reboot counter",              "uint16", 1,   "",        notes="Reboot counter"),
     Register(5114, "Last reboot reason code",                                      "uint16", 1,   "",     notes="Last reboot reason code"),
     Register(5115, "Sys watchdog reboot counter",                                  "uint16", 1,   "",     notes="Sys watchdog reboot counter"),
     Register(5116, "Sys watchdog last reboot reason code",                         "uint16", 1,   "",     notes="Sys watchdog last reboot reason code"),
@@ -143,10 +117,13 @@ _NEW_REGISTERS: list[Register] = [
     Register(5118, "Overload current decrease timeout",                            "uint16", 1,   "min",  default=5,     access="R/W", notes="min. Timeout for current decrease", range=(1.0, 65535.0)),
     Register(5119, "Overload current decrease counter",                            "uint16", 1,   "",     default=1,     access="R/W", notes="Counter for current decrease", range=(1.0, 65535.0)),
     Register(5120, "Overload current decrease rate",                               "uint16", 1,   "%",    default=20,    access="R/W", notes="Rate in % for current decrease", range=(1.0, 65535.0)),
+    Register(5121, "Onboard humidity",            "uint16", 10,  "%",       notes="%*10. for v2 only"),
+    Register(5122, "Onboard temperature",         "uint16", 10,  "°C",      notes="°C*10. for v2 only"),
     Register(5123, "Display temperature",                                          "uint16", 10,  "°C",   notes="°C*10. for v2 only"),
     Register(5124, "Car connector temperature",                                    "uint16", 10,  "°C",   notes="°C*10. for v2 only"),
     Register(5125, "Power meter temperature",                                      "uint16", 10,  "°C",   notes="°C*10. for v2 only"),
     Register(5126, "Power control temperature",                                    "uint16", 10,  "°C",   notes="°C*10. for v2 only"),
+    Register(5127, "Power supply temperature",    "uint16", 10,  "°C",      default=0,  notes="°C*10"),
     Register(5128, "Allow low excess solar power for auto mode",                   "uint16", 1,   "",     default=0,     access="R/W", notes="1 - enabled, 0 - disabled"),
     Register(5129, "Charging current limit external",                              "uint16", 1,   "",     default=0,     access="R/W", notes="External limit for charging current. 0 - no limits. 1 - charging current limited to 6A"),
     Register(5130, "Inverter overtemperature protection",                          "uint16", 1,   "",     default=1,     access="R/W", notes="1 - enabled, 0 - disabled"),
@@ -162,7 +139,27 @@ _NEW_REGISTERS: list[Register] = [
     Register(5140, "Online update feed",                                           "uint16", 1,   "",     default=0,     access="R/W", notes="0 - Official release, 1 - Beta release", range=(0.0, 1.0)),
 ]
 
+
+@dataclass(frozen=True)
+class StringRegister:
+    address: int          # start address
+    name: str
+    register_count: int   # number of Modbus registers (each holds 2 bytes)
+    encoding: str = "utf-8"
+    access: Literal["R", "R/W"] = "R"
+    notes: str = ""
+
+    def __post_init__(self) -> None:
+        if self.register_count <= 0:
+            raise ValueError(f"register_count must be > 0, got {self.register_count!r}")
+
+
+STRING_REGISTERS: list[StringRegister] = [
+    StringRegister(5001, "Serial Id",    6,  notes="6 registers, 12 characters"),
+    StringRegister(5027, "Device name", 22, access="R/W", notes="UTF-8 encoded string, 22 registers, 44 bytes"),
+]
+
 ALL_REGISTERS: list[Register | StringRegister] = sorted(
-    list(REGISTERS) + list(_NEW_REGISTERS) + list(STRING_REGISTERS),
+    list(REGISTERS) + list(STRING_REGISTERS),
     key=lambda r: r.address,
 )

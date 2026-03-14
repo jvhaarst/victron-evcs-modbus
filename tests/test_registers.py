@@ -1,5 +1,5 @@
 import pytest
-from registers import REGISTERS, Register, StringRegister, STRING_REGISTERS, ALL_REGISTERS, _NEW_REGISTERS
+from registers import REGISTERS, Register, StringRegister, STRING_REGISTERS, ALL_REGISTERS
 
 
 def test_register_list_is_not_empty():
@@ -96,12 +96,7 @@ def test_register_with_zero_default():
 
 def test_registers_with_defaults_count():
     count = sum(1 for r in REGISTERS if r.default is not None)
-    assert count == 11
-
-
-def test_new_registers_with_defaults_count():
-    count = sum(1 for r in _NEW_REGISTERS if r.default is not None)
-    assert count == 69
+    assert count == 80
 
 
 def test_register_access_defaults_to_r():
@@ -124,11 +119,6 @@ def test_registers_rw_count():
     count = sum(1 for r in ALL_REGISTERS if isinstance(r, Register) and r.access == "R/W")
     assert count == 76
 
-
-def test_new_registers_rw_count():
-    # Granular check: exactly 68 of the _NEW_REGISTERS are R/W
-    count = sum(1 for r in _NEW_REGISTERS if r.access == "R/W")
-    assert count == 68
 
 
 def test_device_name_is_rw():
