@@ -292,7 +292,7 @@ def _handle_write(args: Any, console: "Console") -> None:
         sys.exit(1)
 
     try:
-        success = write_register(client, reg, raw_value, unit_id=args.unit_id)
+        success, verified = write_register(client, reg, raw_value, unit_id=args.unit_id, verify=True)
     finally:
         client.close()
 
@@ -304,6 +304,8 @@ def _handle_write(args: Any, console: "Console") -> None:
             display = format_value(raw_value, reg.scale)
             unit = f" {reg.unit}" if reg.unit else ""
         console.print(f"[green]Written {address} ({reg.name}): {display}{unit}[/green]")
+        if verified is False:
+            console.print("[yellow]Warning: read-back value differs — device may have clamped the value[/yellow]")
     else:
         console.print(f"[red]Write failed for address {address}[/red]")
         sys.exit(1)

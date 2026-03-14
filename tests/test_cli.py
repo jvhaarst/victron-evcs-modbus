@@ -523,3 +523,21 @@ def test_write_register_verify_readback_error():
     success, verified = write_register(client, reg, 10, verify=True)
     assert success is True
     assert verified is None
+
+
+def test_write_cli_verify_mismatch_prints_warning(monkeypatch, capsys):
+    import cli
+    mock_client = MagicMock()
+    mock_client.connect.return_value = True
+    write_resp = MagicMock()
+    write_resp.isError.return_value = False
+    mock_client.write_register.return_value = write_resp
+    read_resp = MagicMock()
+    read_resp.isError.return_value = False
+    read_resp.registers = [6]  # device returned 6, not 10
+    mock_client.read_holding_registers.return_value = read_resp
+    monkeypatch.setattr(cli, "ModbusTcpClient", lambda **kw: mock_client)
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--write", "5016", "10"])
+    cli.main()
+    captured = capsys.readouterr()
+    assert "Warning" in captured.out or "warning" in captured.out.lower()
