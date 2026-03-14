@@ -585,3 +585,137 @@ def test_validate_write_value_range_scaled():
     assert validate_write_value(reg, "6553.5") == 65535
     with pytest.raises(ValueError, match="out of range"):
         validate_write_value(reg, "0.09")
+
+
+# --- interactive-default mode tests ---
+
+def test_default_mode_launches_tui(monkeypatch):
+    """No mode flag → TUI launched."""
+    import cli
+    mock_client = MagicMock()
+    mock_client.connect.return_value = True
+
+    def mock_read(address, count, device_id):
+        response = MagicMock()
+        response.isError.return_value = False
+        response.registers = [0] * count
+        return response
+
+    mock_client.read_holding_registers.side_effect = mock_read
+    monkeypatch.setattr(cli, "ModbusTcpClient", lambda **kw: mock_client)
+
+    mock_app_instance = MagicMock()
+    mock_app_class = MagicMock(return_value=mock_app_instance)
+    mock_tui_module = MagicMock()
+    mock_tui_module.RegisterEditorApp = mock_app_class
+    monkeypatch.setitem(sys.modules, "tui", mock_tui_module)
+
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1"])
+    cli.main()
+
+    mock_app_instance.run.assert_called_once()
+
+
+def test_read_flag_prints_table(monkeypatch):
+    """--read flag → table path taken, TUI not launched."""
+    import cli
+    mock_client = MagicMock()
+    mock_client.connect.return_value = True
+
+    def mock_read(address, count, device_id):
+        response = MagicMock()
+        response.isError.return_value = False
+        response.registers = [0] * count
+        return response
+
+    mock_client.read_holding_registers.side_effect = mock_read
+    monkeypatch.setattr(cli, "ModbusTcpClient", lambda **kw: mock_client)
+
+    # If TUI path is taken, this will cause ImportError — confirms we stayed in table mode
+    monkeypatch.setitem(sys.modules, "tui", None)
+
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--read"])
+    cli.main()  # Must succeed without TUI
+
+
+def test_read_and_changed_flags(monkeypatch):
+    """--read --changed → filter_changed called, table printed."""
+    import cli
+    calls = []
+    orig = cli.filter_changed
+
+    def spy(registers, values):
+        calls.append(True)
+        return orig(registers, values)
+
+    monkeypatch.setattr(cli, "filter_changed", spy)
+
+    mock_client = MagicMock()
+    mock_client.connect.return_value = True
+
+    def mock_read(address, count, device_id):
+        response = MagicMock()
+        response.isError.return_value = False
+        response.registers = [0] * count
+        return response
+
+    mock_client.read_holding_registers.side_effect = mock_read
+    monkeypatch.setattr(cli, "ModbusTcpClient", lambda **kw: mock_client)
+    monkeypatch.setitem(sys.modules, "tui", None)
+
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--read", "--changed"])
+    cli.main()
+
+    assert calls, "filter_changed was not called with --read --changed"
+
+
+def test_changed_flag_implies_read(monkeypatch):
+    """--changed alone (no --read) → table path taken, not TUI.
+
+    sys.modules["tui"] = None means importing `tui` raises ImportError,
+    which would happen if the TUI branch were taken. If this test passes,
+    the --changed flag correctly routed to table mode without touching tui.
+    """
+    import cli
+    mock_client = MagicMock()
+    mock_client.connect.return_value = True
+
+    def mock_read(address, count, device_id):
+        response = MagicMock()
+        response.isError.return_value = False
+        response.registers = [0] * count
+        return response
+
+    mock_client.read_holding_registers.side_effect = mock_read
+    monkeypatch.setattr(cli, "ModbusTcpClient", lambda **kw: mock_client)
+
+    # If TUI path is taken, ImportError — confirms we stayed in table mode
+    monkeypatch.setitem(sys.modules, "tui", None)
+
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--changed"])
+    cli.main()  # Must succeed without TUI
+
+
+def test_changed_with_write_ignored(monkeypatch):
+    """--changed --write → write succeeds, filter_changed not called."""
+    import cli
+    calls = []
+    orig = cli.filter_changed
+
+    def spy(registers, values):
+        calls.append(True)
+        return orig(registers, values)
+
+    monkeypatch.setattr(cli, "filter_changed", spy)
+
+    mock_client = MagicMock()
+    mock_client.connect.return_value = True
+    write_resp = MagicMock()
+    write_resp.isError.return_value = False
+    mock_client.write_register.return_value = write_resp
+    monkeypatch.setattr(cli, "ModbusTcpClient", lambda **kw: mock_client)
+
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--changed", "--write", "5016", "10"])
+    cli.main()
+
+    assert not calls, "filter_changed must not be called when --write is present"
