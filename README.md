@@ -50,11 +50,11 @@ uv run python cli.py 192.168.0.128 --address 5009-5026
 # Filter by name substring (case-insensitive)
 uv run python cli.py 192.168.0.128 --name "feed in"
 
-# Show only registers that differ from their factory default
+# Show only registers that differ from their factory default (--changed implies --read)
 uv run python cli.py 192.168.0.128 --changed
 
 # Use a non-default Modbus unit ID
-uv run python cli.py 192.168.0.128 --unit-id 2
+uv run python cli.py 192.168.0.128 --unit-id 2 --read
 ```
 
 **Example output:**
