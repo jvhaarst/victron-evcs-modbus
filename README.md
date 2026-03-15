@@ -22,6 +22,10 @@ uv sync
 uv run python cli.py <host> [options]
 ```
 
+## Settings for Victron EVCS — 1P/3P Phase Switching
+
+See [Victron EVCS — 1P/3P Phase Switching via Modbus TCP](./Victron-EVCS-1P-3P-Phase-Switching-via-Modbus-TCP.md)
+
 ### Options
 
 | Option | Default | Description |
