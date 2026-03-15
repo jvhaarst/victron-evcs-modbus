@@ -9,9 +9,8 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label
 
-from cli import format_value, validate_write_value
 from modbus import read_registers, write_register
-from registers import Register, StringRegister
+from registers import Register, StringRegister, format_value, validate_write_value
 
 
 class EditModal(ModalScreen[int | str | None]):

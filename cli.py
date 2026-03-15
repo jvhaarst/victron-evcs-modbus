@@ -12,20 +12,17 @@ from rich.table import Table
 
 from categories import CATEGORIES
 from modbus import read_registers, scan_registers, write_register
-from registers import ALL_REGISTERS, Register, StringRegister
+from registers import (
+    ALL_REGISTERS,
+    Register,
+    StringRegister,
+    filter_changed,
+    format_value,
+    validate_write_value,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-
-
-def format_value(raw: int, scale: int) -> str:
-    """Convert a raw register integer to a display string.
-
-    scale=1 → integer string; scale>1 → decimal with appropriate precision.
-    """
-    if scale == 1:
-        return str(raw)
-    return str(round(raw / scale, max(0, len(str(scale)) - 1)))
 
 
 def build_table(
@@ -94,66 +91,6 @@ def filter_registers(
         result = [r for r in result if name_lower in r.name.lower()]
 
     return result
-
-
-def filter_changed(
-    registers: Sequence[Register | StringRegister],
-    values: dict[int, int | str | None],
-) -> list[Register | StringRegister]:
-    """Return only registers whose live value differs from their factory default.
-
-    Excludes: StringRegister entries, registers with no default (default=None),
-    registers whose value is None (read error).
-    """
-    return [
-        reg for reg in registers
-        if isinstance(reg, Register)
-        and reg.default is not None
-        and (raw := values.get(reg.address)) is not None
-        and raw != reg.default
-    ]
-
-
-def validate_write_value(reg: Register | StringRegister, input_str: str) -> int | str:
-    """Parse and validate a human-readable display value for writing to reg.
-
-    For Register: parses as float, checks device range, multiplies by scale,
-    rounds to int, validates type bounds. Returns raw int ready for write_register.
-    For StringRegister: validates UTF-8 byte length. Returns input_str unchanged.
-    Raises ValueError with a descriptive message on invalid input.
-    """
-    if isinstance(reg, StringRegister):
-        try:
-            encoded = input_str.encode(reg.encoding)
-        except UnicodeEncodeError as e:
-            raise ValueError(f"String contains unencodable characters: {e}") from e
-        max_bytes = reg.register_count * 2
-        if len(encoded) > max_bytes:
-            raise ValueError(
-                f"String too long: {len(encoded)} bytes, max {max_bytes}"
-            )
-        return input_str
-    try:
-        display_val = float(input_str)
-    except ValueError:
-        raise ValueError(f"Invalid number: {input_str!r}") from None
-    if reg.value_range is not None:
-        lo, hi = reg.value_range
-        if not (lo <= display_val <= hi):
-            raise ValueError(
-                f"Value out of range: {display_val} is not between {lo} and {hi}"
-            )
-    raw = round(display_val * reg.scale)
-    if reg.data_type == "uint16":
-        if not (0 <= raw <= 65535):
-            raise ValueError(
-                f"Value out of range for uint16 (0–65535 raw, got {raw})"
-            )
-    elif not (-32768 <= raw <= 32767):
-        raise ValueError(
-            f"Value out of range for int16 (-32768–32767 raw, got {raw})"
-        )
-    return raw
 
 
 def build_scan_table(

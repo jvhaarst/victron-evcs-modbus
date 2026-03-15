@@ -5,15 +5,16 @@ from unittest.mock import MagicMock
 import pytest
 from rich.console import Console as _RichConsole
 
-from cli import (
-    build_table,
+from cli import build_table, filter_registers
+from modbus import read_registers, write_register
+from registers import (
+    ALL_REGISTERS,
+    Register,
+    StringRegister,
     filter_changed,
-    filter_registers,
     format_value,
     validate_write_value,
 )
-from modbus import read_registers, write_register
-from registers import ALL_REGISTERS, Register, StringRegister
 
 
 def _render(table) -> str:
