@@ -38,6 +38,7 @@ See [Victron EVCS — 1P/3P Phase Switching via Modbus TCP](./Victron-EVCS-1P-3P
 | `--read` | — | Print register table and exit (default: launch TUI) |
 | `--changed` | — | Show only registers that differ from factory default (implies `--read`) |
 | `--write ADDR VALUE` | — | Write a value to a register |
+| `--scan START-END` | — | Scan raw register values for every address in range |
 
 ### Read registers (table output)
 
@@ -100,6 +101,29 @@ Warning: read-back value differs — device may have clamped the value
 ```
 
 Only R/W registers can be written. Values outside the register's documented range are rejected before sending.
+
+### Scan raw registers
+
+```bash
+uv run python cli.py 192.168.0.128 --scan 5000-5200
+```
+
+Reads every address in the given range as a raw uint16, regardless of whether it appears in the spec sheet. Useful for discovering undocumented registers.
+
+**Example output:**
+
+```
+           Register Scan 5000–5010
+┏━━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃ Address ┃ Hex    ┃   Dec ┃ Hex value ┃ Known name        ┃
+┡━━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│    5000 │ 0x1388 │ 41061 │ 0xA065    │ Product ID        │
+│    5001 │ 0x1389 │   ...  │ ...       │ Serial ID         │
+│    5010 │ 0x138A │     0 │ 0x0000    │                   │  ← unknown
+└─────────┴────────┴───────┴───────────┴───────────────────┘
+```
+
+The **Known name** column is populated where the address matches a register in the spec; blank rows are undocumented. Addresses that return a Modbus error are shown as `error`.
 
 ### Interactive TUI (default)
 
