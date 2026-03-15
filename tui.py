@@ -41,7 +41,7 @@ class EditModal(ModalScreen[int | str | None]):
         self.current_display = current_display
 
     def compose(self) -> ComposeResult:
-        unit = getattr(self.reg, "unit", "")
+        unit = self.reg.unit if isinstance(self.reg, Register) else ""
         unit_str = f"  [{unit}]" if unit else ""
         with Vertical(id="edit-dialog"):
             yield Label(f"[bold]{self.reg.name}[/bold]{unit_str}")
@@ -203,7 +203,7 @@ class RegisterEditorApp(App):
                 str(reg.address),
                 reg.name,
                 self._value_cell(reg),
-                getattr(reg, "unit", ""),
+                reg.unit if isinstance(reg, Register) else "",
                 self._default_cell(reg),
                 reg.access,
                 key=key,

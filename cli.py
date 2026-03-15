@@ -1,4 +1,4 @@
-"""Victron EVCS Modbus TCP register reader."""
+"""CLI entry point: argument parsing, table rendering, and dispatch to read/write/scan/TUI modes."""
 from __future__ import annotations
 
 import argparse
