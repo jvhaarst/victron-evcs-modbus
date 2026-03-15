@@ -599,41 +599,41 @@ def test_write_cli_success_message(monkeypatch, capsys):
 # --- validate_write_value range tests ---
 
 def test_validate_write_value_range_ok():
-    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", range=(6.0, 32.0))
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", value_range=(6.0, 32.0))
     assert validate_write_value(reg, "10") == 10
 
 
 def test_validate_write_value_range_boundary_low():
-    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", range=(6.0, 32.0))
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", value_range=(6.0, 32.0))
     assert validate_write_value(reg, "6") == 6
 
 
 def test_validate_write_value_range_boundary_high():
-    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", range=(6.0, 32.0))
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", value_range=(6.0, 32.0))
     assert validate_write_value(reg, "32") == 32
 
 
 def test_validate_write_value_range_too_low():
-    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", range=(6.0, 32.0))
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", value_range=(6.0, 32.0))
     with pytest.raises(ValueError, match="out of range"):
         validate_write_value(reg, "5")
 
 
 def test_validate_write_value_range_too_high():
-    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", range=(6.0, 32.0))
+    reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W", value_range=(6.0, 32.0))
     with pytest.raises(ValueError, match="out of range"):
         validate_write_value(reg, "33")
 
 
 def test_validate_write_value_no_range():
-    # range=None means no range constraint beyond type bounds
+    # value_range=None means no range constraint beyond type bounds
     reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
     assert validate_write_value(reg, "1000") == 1000
 
 
 def test_validate_write_value_range_scaled():
     # scale=10: display lo=0.1 → raw=1, display hi=6553.5 → raw=65535
-    reg = Register(5076, "Feed-in current step", "uint16", 10, "A", access="R/W", range=(0.1, 6553.5))
+    reg = Register(5076, "Feed-in current step", "uint16", 10, "A", access="R/W", value_range=(0.1, 6553.5))
     assert validate_write_value(reg, "0.1") == 1
     assert validate_write_value(reg, "6553.5") == 65535
     with pytest.raises(ValueError, match="out of range"):

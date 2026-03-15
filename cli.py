@@ -200,8 +200,8 @@ def validate_write_value(reg: Register | StringRegister, input_str: str) -> int 
         display_val = float(input_str)
     except ValueError:
         raise ValueError(f"Invalid number: {input_str!r}") from None
-    if reg.range is not None:
-        lo, hi = reg.range
+    if reg.value_range is not None:
+        lo, hi = reg.value_range
         if not (lo <= display_val <= hi):
             raise ValueError(
                 f"Value out of range: {display_val} is not between {lo} and {hi}"
