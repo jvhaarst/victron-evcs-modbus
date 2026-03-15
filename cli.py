@@ -25,6 +25,8 @@ from registers import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+_REG_BY_ADDR: dict[int, Register | StringRegister] = {r.address: r for r in ALL_REGISTERS}
+
 
 def build_table(
     registers: Sequence[Register | StringRegister],
@@ -156,7 +158,7 @@ def _handle_write(args: Any, console: Console) -> None:
         console.print(f"[red]Invalid address: {addr_str!r}[/red]")
         sys.exit(1)
 
-    reg = next((r for r in ALL_REGISTERS if r.address == address), None)
+    reg = _REG_BY_ADDR.get(address)
     if reg is None:
         console.print(f"[red]Address {address} not found in register list[/red]")
         sys.exit(1)
