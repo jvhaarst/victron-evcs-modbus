@@ -1,5 +1,12 @@
 import pytest
-from registers import REGISTERS, Register, StringRegister, STRING_REGISTERS, ALL_REGISTERS
+
+from registers import (
+    ALL_REGISTERS,
+    REGISTERS,
+    STRING_REGISTERS,
+    Register,
+    StringRegister,
+)
 
 
 def test_register_list_is_not_empty():

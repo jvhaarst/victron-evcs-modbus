@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import struct
 import sys
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pymodbus.client import ModbusTcpClient
 from rich.console import Console

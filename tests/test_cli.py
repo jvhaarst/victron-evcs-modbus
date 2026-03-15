@@ -2,10 +2,20 @@ import struct
 import sys
 from io import StringIO
 from unittest.mock import MagicMock
+
 import pytest
 from rich.console import Console as _RichConsole
-from registers import Register, StringRegister, ALL_REGISTERS
-from cli import read_registers, build_table, format_value, filter_registers, filter_changed, validate_write_value, write_register
+
+from cli import (
+    build_table,
+    filter_changed,
+    filter_registers,
+    format_value,
+    read_registers,
+    validate_write_value,
+    write_register,
+)
+from registers import ALL_REGISTERS, Register, StringRegister
 
 
 def _render(table) -> str:

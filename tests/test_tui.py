@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import MagicMock
-from registers import Register, StringRegister
+
+import pytest
+
 from cli import format_value
+from registers import Register, StringRegister
 
 
 @pytest.fixture
@@ -37,8 +39,9 @@ async def test_tui_loads(rw_reg, ro_reg, mock_client):
 
 @pytest.mark.asyncio
 async def test_tui_enter_on_readonly_does_nothing(ro_reg, mock_client):
-    from tui import RegisterEditorApp
     from textual.widgets import DataTable
+
+    from tui import RegisterEditorApp
     registers = [ro_reg]
     values = {5000: 49189}
     async with RegisterEditorApp(mock_client, registers, values).run_test() as pilot:
@@ -49,8 +52,9 @@ async def test_tui_enter_on_readonly_does_nothing(ro_reg, mock_client):
 
 @pytest.mark.asyncio
 async def test_tui_enter_edit_escape_restores(rw_reg, mock_client):
-    from tui import RegisterEditorApp
     from textual.widgets import DataTable
+
+    from tui import RegisterEditorApp
     registers = [rw_reg]
     values = {5016: 10}
     async with RegisterEditorApp(mock_client, registers, values).run_test() as pilot:
@@ -108,8 +112,9 @@ async def test_tui_ctrl_q_with_pending_shows_dialog(rw_reg, mock_client):
 
 @pytest.mark.asyncio
 async def test_tui_ctrl_q_dialog_no_discards(rw_reg, mock_client):
-    from tui import RegisterEditorApp
     from textual.widgets import Button
+
+    from tui import RegisterEditorApp
     registers = [rw_reg]
     values = {5016: 10}
     async with RegisterEditorApp(mock_client, registers, values).run_test() as pilot:
