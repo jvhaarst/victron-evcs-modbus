@@ -163,3 +163,16 @@ ALL_REGISTERS: list[Register | StringRegister] = sorted(
     list(REGISTERS) + list(STRING_REGISTERS),
     key=lambda r: r.address,
 )
+
+
+def parse_address_range(range_str: str) -> tuple[int, int]:
+    """Parse a 'START-END' string into a (start, end) integer tuple.
+
+    Raises ValueError if the format is invalid.
+    """
+    parts = range_str.split("-")
+    if len(parts) != 2 or not all(p.strip().isdigit() for p in parts):
+        raise ValueError(
+            f"Invalid address range '{range_str}'. Format: START-END (e.g. 5000-5050)"
+        )
+    return int(parts[0]), int(parts[1])

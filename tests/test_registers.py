@@ -156,3 +156,24 @@ def test_charge_mode_notes():
 def test_serial_id_notes():
     reg = next(r for r in STRING_REGISTERS if r.address == 5001)
     assert reg.notes == "6 registers, 12 characters"
+
+
+from registers import parse_address_range
+
+
+def test_parse_address_range_valid():
+    assert parse_address_range("5000-5050") == (5000, 5050)
+
+
+def test_parse_address_range_single_register():
+    assert parse_address_range("5000-5000") == (5000, 5000)
+
+
+def test_parse_address_range_invalid_format():
+    with pytest.raises(ValueError, match="Format: START-END"):
+        parse_address_range("bad-range")
+
+
+def test_parse_address_range_not_enough_parts():
+    with pytest.raises(ValueError, match="Format: START-END"):
+        parse_address_range("5000")
