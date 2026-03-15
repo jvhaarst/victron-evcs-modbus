@@ -6,6 +6,7 @@ from registers import (
     STRING_REGISTERS,
     Register,
     StringRegister,
+    parse_address_range,
 )
 
 
@@ -156,9 +157,6 @@ def test_charge_mode_notes():
 def test_serial_id_notes():
     reg = next(r for r in STRING_REGISTERS if r.address == 5001)
     assert reg.notes == "6 registers, 12 characters"
-
-
-from registers import parse_address_range
 
 
 def test_parse_address_range_valid():

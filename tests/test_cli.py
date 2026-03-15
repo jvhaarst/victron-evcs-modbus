@@ -10,10 +10,9 @@ from cli import (
     filter_changed,
     filter_registers,
     format_value,
-    read_registers,
     validate_write_value,
-    write_register,
 )
+from modbus import read_registers, write_register
 from registers import ALL_REGISTERS, Register, StringRegister
 
 
