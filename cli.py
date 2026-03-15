@@ -219,6 +219,63 @@ def validate_write_value(reg: Register | StringRegister, input_str: str) -> int 
     return raw
 
 
+def scan_registers(
+    client: Any,
+    start: int,
+    end: int,
+    unit_id: int = 1,
+) -> dict[int, int | None]:
+    """Read raw uint16 values for every address in [start, end] inclusive.
+
+    Reads in chunks of up to 125 registers per FC3 call.
+    Returns a dict mapping address -> raw uint16 value (or None on error).
+    """
+    result: dict[int, int | None] = {}
+    addr = start
+    while addr <= end:
+        count = min(125, end - addr + 1)
+        response = client.read_holding_registers(address=addr, count=count, device_id=unit_id)
+        if response.isError():
+            for a in range(addr, addr + count):
+                result[a] = None
+        else:
+            for i, raw in enumerate(response.registers):
+                result[addr + i] = raw
+        addr += count
+    return result
+
+
+def build_scan_table(
+    start: int,
+    end: int,
+    values: dict[int, int | None],
+    known_registers: Sequence[Register | StringRegister],
+) -> Table:
+    """Build a Rich table for raw scan results over an address range."""
+    known_map = {r.address: r for r in known_registers}
+    table = Table(title=f"Register Scan {start}–{end}", show_header=True)
+    table.add_column("Address", style="cyan", justify="right")
+    table.add_column("Hex", style="dim", justify="right")
+    table.add_column("Dec", style="green", justify="right")
+    table.add_column("Hex value", style="dim", justify="right")
+    table.add_column("Known name", style="white")
+
+    for addr in range(start, end + 1):
+        raw = values.get(addr)
+        hex_addr = f"0x{addr:04X}"
+        if raw is None:
+            dec_str = "[red]error[/red]"
+            hex_str = ""
+        else:
+            dec_str = str(raw)
+            hex_str = f"0x{raw:04X}"
+        reg = known_map.get(addr)
+        known_name = reg.name if reg is not None else ""
+        table.add_row(str(addr), hex_addr, dec_str, hex_str, known_name)
+
+    return table
+
+
 def write_register(
     client: Any,
     reg: Register | StringRegister,
@@ -267,6 +324,34 @@ def write_register(
             return True, None
     except OSError:
         return False, None
+
+
+def _handle_scan(args: Any, console: Console) -> None:
+    """Handle the --scan CLI flow."""
+    parts = args.scan.split("-")
+    if len(parts) != 2 or not all(p.strip().isdigit() for p in parts):
+        console.print(
+            f"[red]Invalid scan range '{args.scan}'. "
+            f"Format: START-END (e.g. 5000-5200)[/red]"
+        )
+        sys.exit(1)
+    start, end = int(parts[0]), int(parts[1])
+    if start > end:
+        console.print(f"[red]Scan start {start} must be ≤ end {end}[/red]")
+        sys.exit(1)
+
+    client = ModbusTcpClient(host=args.host, port=args.port)
+    if not client.connect():
+        console.print(f"[red]Failed to connect to {args.host}:{args.port}[/red]")
+        sys.exit(1)
+
+    try:
+        values = scan_registers(client, start, end, unit_id=args.unit_id)
+    finally:
+        client.close()
+
+    table = build_scan_table(start, end, values, ALL_REGISTERS)
+    console.print(table)
 
 
 def _handle_write(args: Any, console: Console) -> None:
@@ -347,6 +432,10 @@ def main() -> None:
         "--write", nargs=2, metavar=("ADDRESS", "VALUE"),
         help="Write VALUE to register at ADDRESS (e.g. --write 5016 10)",
     )
+    mode_group.add_argument(
+        "--scan", metavar="START-END",
+        help="Scan raw register values for every address in range (e.g. --scan 5000-5200)",
+    )
     args = parser.parse_args()
 
     console = Console()
@@ -361,6 +450,10 @@ def main() -> None:
             )
             sys.exit(1)
         address_range = (int(parts[0]), int(parts[1]))
+
+    if args.scan:
+        _handle_scan(args, console)
+        return
 
     if args.write:
         _handle_write(args, console)
