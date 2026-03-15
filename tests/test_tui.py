@@ -2,8 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from cli import format_value
-from registers import Register, StringRegister
+from registers import Register
 
 
 @pytest.fixture
@@ -39,7 +38,6 @@ async def test_tui_loads(rw_reg, ro_reg, mock_client):
 
 @pytest.mark.asyncio
 async def test_tui_enter_on_readonly_does_nothing(ro_reg, mock_client):
-    from textual.widgets import DataTable
 
     from tui import RegisterEditorApp
     registers = [ro_reg]
@@ -112,7 +110,6 @@ async def test_tui_ctrl_q_with_pending_shows_dialog(rw_reg, mock_client):
 
 @pytest.mark.asyncio
 async def test_tui_ctrl_q_dialog_no_discards(rw_reg, mock_client):
-    from textual.widgets import Button
 
     from tui import RegisterEditorApp
     registers = [rw_reg]

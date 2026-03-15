@@ -134,7 +134,7 @@ class NotesModal(ModalScreen[None]):
         self.reg = reg
 
     def compose(self) -> ComposeResult:
-        text = self.reg.notes if self.reg.notes else "No notes available for this register."
+        text = self.reg.notes or "No notes available for this register."
         with Vertical(id="notes-dialog"):
             yield Label(f"[bold]{self.reg.name}[/bold]  [{self.reg.address}]")
             yield Label(text, id="notes-text")

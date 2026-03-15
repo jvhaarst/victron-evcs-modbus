@@ -199,7 +199,7 @@ def validate_write_value(reg: Register | StringRegister, input_str: str) -> int 
     try:
         display_val = float(input_str)
     except ValueError:
-        raise ValueError(f"Invalid number: {input_str!r}")
+        raise ValueError(f"Invalid number: {input_str!r}") from None
     if reg.range is not None:
         lo, hi = reg.range
         if not (lo <= display_val <= hi):
@@ -212,11 +212,10 @@ def validate_write_value(reg: Register | StringRegister, input_str: str) -> int 
             raise ValueError(
                 f"Value out of range for uint16 (0–65535 raw, got {raw})"
             )
-    else:  # int16
-        if not (-32768 <= raw <= 32767):
-            raise ValueError(
-                f"Value out of range for int16 (-32768–32767 raw, got {raw})"
-            )
+    elif not (-32768 <= raw <= 32767):
+        raise ValueError(
+            f"Value out of range for int16 (-32768–32767 raw, got {raw})"
+        )
     return raw
 
 
@@ -263,15 +262,14 @@ def write_register(
                 rb_bytes = struct.pack(f"<{reg.register_count}H", *rb.registers)
                 rb_str = rb_bytes.rstrip(b"\x00").decode(reg.encoding)
                 return True, rb_str == value
-            else:
-                return True, rb.registers[0] == wire_value
+            return True, rb.registers[0] == wire_value
         except (OSError, struct.error, UnicodeDecodeError):
             return True, None
     except OSError:
         return False, None
 
 
-def _handle_write(args: Any, console: "Console") -> None:
+def _handle_write(args: Any, console: Console) -> None:
     """Handle the --write CLI flow."""
     addr_str, value_str = args.write
     try:
