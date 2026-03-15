@@ -10,6 +10,7 @@ from pymodbus.client import ModbusTcpClient
 from rich.console import Console
 from rich.table import Table
 
+from categories import CATEGORIES
 from registers import ALL_REGISTERS, Register, StringRegister
 
 if TYPE_CHECKING:
@@ -17,7 +18,10 @@ if TYPE_CHECKING:
 
 
 def format_value(raw: int, scale: int) -> str:
-    # scale=1 → integer, scale>1 → decimal with appropriate precision
+    """Convert a raw register integer to a display string.
+
+    scale=1 → integer string; scale>1 → decimal with appropriate precision.
+    """
     if scale == 1:
         return str(raw)
     return str(round(raw / scale, max(0, len(str(scale)) - 1)))
@@ -133,8 +137,6 @@ def filter_registers(
     Multiple filters combine as AND (intersection).
     Returns all registers if no filters specified.
     """
-    from categories import CATEGORIES
-
     result = list(registers)
 
     if category is not None:
@@ -262,9 +264,9 @@ def write_register(
                 return True, rb_str == value
             else:
                 return True, rb.registers[0] == wire_value
-        except Exception:
+        except (OSError, struct.error, UnicodeDecodeError):
             return True, None
-    except Exception:
+    except OSError:
         return False, None
 
 
@@ -318,6 +320,7 @@ def _handle_write(args: Any, console: "Console") -> None:
 
 
 def main() -> None:
+    """CLI entry point: parse arguments and dispatch to read, write, or TUI mode."""
     parser = argparse.ArgumentParser(
         description="Read Victron EVCS registers over Modbus TCP"
     )
@@ -345,8 +348,6 @@ def main() -> None:
     args = parser.parse_args()
 
     console = Console()
-
-    from categories import CATEGORIES
 
     if args.category is not None and args.category not in CATEGORIES:
         console.print(

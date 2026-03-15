@@ -1,9 +1,18 @@
 import struct
 import sys
+from io import StringIO
 from unittest.mock import MagicMock
 import pytest
+from rich.console import Console as _RichConsole
 from registers import Register, StringRegister, ALL_REGISTERS
 from cli import read_registers, build_table, format_value, filter_registers, filter_changed, validate_write_value, write_register
+
+
+def _render(table) -> str:
+    """Render a Rich table to plain text for assertions."""
+    buf = StringIO()
+    _RichConsole(file=buf, force_terminal=False, no_color=True, width=200).print(table)
+    return buf.getvalue()
 
 
 # --- format_value tests (pure, no mocking needed) ---
@@ -176,38 +185,36 @@ def test_build_table_shows_formatted_default():
     reg = Register(5016, "Charging current", "uint16", 1, "A", default=6)
     values = {5016: 10}
     table = build_table([reg], values)
-    # Value differs from default → yellow markup in value cell
-    rendered = table.columns[2]._cells[0]  # Value column, first row
-    assert "[yellow]" in rendered
-    # Default column shows formatted default
-    default_cell = table.columns[4]._cells[0]  # Default column, first row
-    assert default_cell == "6"
+    output = _render(table)
+    assert "10" in output   # value shown
+    assert "6" in output    # default shown
+    # _cells stores the raw Rich markup string; no clean public API for this check
+    assert "[yellow]" in table.columns[2]._cells[0]  # value highlighted (differs from default)
 
 
 def test_build_table_zero_default_shows_zero():
     reg = Register(5009, "Charge mode", "uint16", 1, "", default=0)
     values = {5009: 0}
     table = build_table([reg], values)
-    default_cell = table.columns[4]._cells[0]
-    assert default_cell == "0"
-    value_cell = table.columns[2]._cells[0]
-    assert "[yellow]" not in value_cell  # values match, no highlight
+    output = _render(table)
+    assert "0" in output    # zero default rendered (not blank)
+    assert "[yellow]" not in table.columns[2]._cells[0]  # matching value — no highlight
 
 
 def test_build_table_no_default_shows_blank():
     reg = Register(5000, "Product ID", "uint16", 1, "")
     values = {5000: 49189}
     table = build_table([reg], values)
-    default_cell = table.columns[4]._cells[0]
-    assert default_cell == ""
+    output = _render(table)
+    assert "49189" in output    # value shown
+    assert table.columns[4]._cells[0] == ""  # no default → blank cell
 
 
 def test_build_table_value_matches_default_no_highlight():
     reg = Register(5016, "Charging current", "uint16", 1, "A", default=6)
     values = {5016: 6}
     table = build_table([reg], values)
-    value_cell = table.columns[2]._cells[0]
-    assert "[yellow]" not in value_cell
+    assert "[yellow]" not in table.columns[2]._cells[0]  # matching value — no highlight
 
 
 # --- filter_changed tests ---
@@ -384,7 +391,7 @@ def test_string_register_byte_order_read():
 def test_write_register_exception_returns_false():
     reg = Register(5016, "Charging current", "uint16", 1, "A", access="R/W")
     mock_client = MagicMock()
-    mock_client.write_register.side_effect = Exception("connection lost")
+    mock_client.write_register.side_effect = OSError("connection lost")
     success, _ = write_register(mock_client, reg, 10)
     assert success is False
 

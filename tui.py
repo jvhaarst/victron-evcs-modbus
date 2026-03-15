@@ -320,7 +320,7 @@ class RegisterEditorApp(App):
             self.values = new_values
             self._rebuild_table()
             self.notify("Refreshed", severity="information")
-        except Exception as e:
+        except Exception as e:  # broad catch intentional: any error should display rather than crash the TUI
             self.notify(f"Refresh failed: {e}", severity="error")
 
     def action_show_notes(self) -> None:

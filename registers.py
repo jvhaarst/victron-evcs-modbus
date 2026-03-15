@@ -3,7 +3,7 @@
 Source: EVCS-Modbus-TCP-register-list-v3.8.xlsx, sheet "Holding registers".
 """
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -13,7 +13,7 @@ class Register:
     data_type: Literal["uint16", "int16"]
     scale: int      # divide raw value by this to get real value; must be > 0
     unit: str       # display unit string
-    default: Optional[int] = None  # factory default (None = no default in spec)
+    default: int | None = None  # factory default (None = no default in spec)
     access: Literal["R", "R/W"] = "R"
     notes: str = ""
     range: tuple[float, float] | None = None  # display-value range (raw ÷ scale); None = no constraint  # noqa: A003
