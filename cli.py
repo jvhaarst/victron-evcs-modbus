@@ -127,6 +127,15 @@ def build_scan_table(
     return table
 
 
+def _connect(args: Any, console: Console) -> ModbusTcpClient:
+    """Create and connect a Modbus TCP client, or exit on failure."""
+    client = ModbusTcpClient(host=args.host, port=args.port)
+    if not client.connect():
+        console.print(f"[red]Failed to connect to {args.host}:{args.port}[/red]")
+        sys.exit(1)
+    return client
+
+
 def _handle_scan(args: Any, console: Console) -> None:
     """Handle the --scan CLI flow."""
     try:
@@ -135,10 +144,7 @@ def _handle_scan(args: Any, console: Console) -> None:
         console.print(f"[red]{e}[/red]")
         sys.exit(1)
 
-    client = ModbusTcpClient(host=args.host, port=args.port)
-    if not client.connect():
-        console.print(f"[red]Failed to connect to {args.host}:{args.port}[/red]")
-        sys.exit(1)
+    client = _connect(args, console)
 
     try:
         values = scan_registers(client, start, end, unit_id=args.unit_id)
@@ -173,10 +179,7 @@ def _handle_write(args: Any, console: Console) -> None:
         console.print(f"[red]Invalid value: {e}[/red]")
         sys.exit(1)
 
-    client = ModbusTcpClient(host=args.host, port=args.port)
-    if not client.connect():
-        console.print(f"[red]Failed to connect to {args.host}:{args.port}[/red]")
-        sys.exit(1)
+    client = _connect(args, console)
 
     try:
         success, verified = write_register(client, reg, raw_value, unit_id=args.unit_id, verify=True)
@@ -262,10 +265,7 @@ def main() -> None:
         console.print(f"[red]{e}[/red]")
         sys.exit(1)
 
-    client = ModbusTcpClient(host=args.host, port=args.port)
-    if not client.connect():
-        console.print(f"[red]Failed to connect to {args.host}:{args.port}[/red]")
-        sys.exit(1)
+    client = _connect(args, console)
 
     try:
         values = read_registers(client, registers, unit_id=args.unit_id)
