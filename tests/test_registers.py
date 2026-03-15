@@ -96,7 +96,7 @@ def test_register_with_zero_default():
 
 def test_registers_with_defaults_count():
     count = sum(1 for r in REGISTERS if r.default is not None)
-    assert count == 80
+    assert count == 80  # snapshot: update when registers are added
 
 
 def test_register_access_defaults_to_r():
@@ -115,7 +115,7 @@ def test_string_register_access_defaults_to_r():
 
 
 def test_registers_rw_count():
-    # All scalar Register entries across the full list
+    # All scalar Register entries across the full list; snapshot: update when registers are added
     count = sum(1 for r in ALL_REGISTERS if isinstance(r, Register) and r.access == "R/W")
     assert count == 76
 

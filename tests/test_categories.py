@@ -39,6 +39,11 @@ def test_no_duplicate_addresses_within_category():
 
 
 def test_register_can_appear_in_multiple_categories():
-    """Registers may belong to more than one category — this is intentional."""
+    """Registers may belong to more than one category — this is intentional.
+    All known cross-category registers are enumerated here as a known-good list."""
     assert 5099 in CATEGORIES["status"]
     assert 5099 in CATEGORIES["config"]
+    assert 5113 in CATEGORIES["device"]
+    assert 5113 in CATEGORIES["diagnostics"]
+    assert 5117 in CATEGORIES["status"]
+    assert 5117 in CATEGORIES["diagnostics"]

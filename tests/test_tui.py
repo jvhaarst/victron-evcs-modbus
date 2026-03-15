@@ -73,8 +73,7 @@ async def test_tui_edit_marks_pending(rw_reg, mock_client):
     values = {5016: 10}
     async with RegisterEditorApp(mock_client, registers, values).run_test() as pilot:
         await pilot.press("enter")         # open edit modal
-        await pilot.press("ctrl+shift+a")  # select all
-        await pilot.press("1", "6")        # type new value (replaces selection)
+        await pilot.press("1", "6")        # type new value (Input text is auto-selected on focus)
         await pilot.press("enter")         # confirm edit
         await pilot.pause()
         assert 5016 in pilot.app.pending

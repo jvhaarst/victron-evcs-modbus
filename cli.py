@@ -187,7 +187,7 @@ def validate_write_value(reg: Register | StringRegister, input_str: str) -> int 
     """
     if isinstance(reg, StringRegister):
         try:
-            encoded = input_str.encode("utf-8")
+            encoded = input_str.encode(reg.encoding)
         except UnicodeEncodeError as e:
             raise ValueError(f"String contains unencodable characters: {e}") from e
         max_bytes = reg.register_count * 2
@@ -350,13 +350,6 @@ def main() -> None:
 
     console = Console()
 
-    if args.category is not None and args.category not in CATEGORIES:
-        console.print(
-            f"[red]Unknown category '{args.category}'. "
-            f"Available: {', '.join(sorted(CATEGORIES))}[/red]"
-        )
-        sys.exit(1)
-
     address_range = None
     if args.address is not None:
         parts = args.address.split("-")
@@ -372,12 +365,16 @@ def main() -> None:
         _handle_write(args, console)
         return
 
-    registers = filter_registers(
-        ALL_REGISTERS,
-        category=args.category,
-        address_range=address_range,
-        name=args.name,
-    )
+    try:
+        registers = filter_registers(
+            ALL_REGISTERS,
+            category=args.category,
+            address_range=address_range,
+            name=args.name,
+        )
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(1)
 
     client = ModbusTcpClient(host=args.host, port=args.port)
     if not client.connect():
@@ -386,7 +383,7 @@ def main() -> None:
 
     try:
         values = read_registers(client, registers, unit_id=args.unit_id)
-    except Exception as e:
+    except (OSError, struct.error, UnicodeDecodeError) as e:
         client.close()
         console.print(f"[red]Failed to read registers: {e}[/red]")
         sys.exit(1)
