@@ -186,7 +186,10 @@ def validate_write_value(reg: Register | StringRegister, input_str: str) -> int 
     Raises ValueError with a descriptive message on invalid input.
     """
     if isinstance(reg, StringRegister):
-        encoded = input_str.encode("utf-8")
+        try:
+            encoded = input_str.encode("utf-8")
+        except UnicodeEncodeError as e:
+            raise ValueError(f"String contains unencodable characters: {e}") from e
         max_bytes = reg.register_count * 2
         if len(encoded) > max_bytes:
             raise ValueError(
@@ -241,8 +244,6 @@ def write_register(
                 address=reg.address, values=words, device_id=unit_id
             )
         else:
-            if not isinstance(value, int):
-                return False, None
             wire_value = (value + 65536) if value < 0 else value
             response = client.write_register(
                 address=reg.address, value=wire_value, device_id=unit_id

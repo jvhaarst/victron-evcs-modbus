@@ -71,7 +71,7 @@ def test_string_register_rejects_non_positive_register_count():
 
 
 def test_all_registers_count():
-    assert len(ALL_REGISTERS) == 115
+    assert len(ALL_REGISTERS) == len(REGISTERS) + len(STRING_REGISTERS)
 
 
 def test_no_duplicate_addresses_across_all():

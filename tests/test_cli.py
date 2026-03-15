@@ -550,6 +550,32 @@ def test_write_cli_verify_mismatch_prints_warning(monkeypatch, capsys):
     assert "Warning" in captured.out or "warning" in captured.out.lower()
 
 
+def test_main_invalid_category_exits(monkeypatch):
+    import cli
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--read", "--category", "nonexistent"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 1
+
+
+def test_write_cli_success_message(monkeypatch, capsys):
+    import cli
+    mock_client = MagicMock()
+    mock_client.connect.return_value = True
+    response = MagicMock()
+    response.isError.return_value = False
+    response.registers = [10]
+    mock_client.write_register.return_value = response
+    mock_client.read_holding_registers.return_value = response
+    monkeypatch.setattr(cli, "ModbusTcpClient", lambda **kw: mock_client)
+    monkeypatch.setattr(sys, "argv", ["cli.py", "127.0.0.1", "--write", "5016", "10"])
+    cli.main()
+    captured = capsys.readouterr()
+    assert "5016" in captured.out
+    assert "10" in captured.out
+    assert "A" in captured.out
+
+
 # --- validate_write_value range tests ---
 
 def test_validate_write_value_range_ok():

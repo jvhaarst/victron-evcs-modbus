@@ -31,3 +31,14 @@ def test_status_contains_charger_status():
 def test_no_empty_categories():
     for cat, addresses in CATEGORIES.items():
         assert len(addresses) > 0, f"Category '{cat}' is empty"
+
+
+def test_no_duplicate_addresses_within_category():
+    for cat, addresses in CATEGORIES.items():
+        assert len(addresses) == len(set(addresses)), f"Duplicate addresses in '{cat}'"
+
+
+def test_register_can_appear_in_multiple_categories():
+    """Registers may belong to more than one category — this is intentional."""
+    assert 5099 in CATEGORIES["status"]
+    assert 5099 in CATEGORIES["config"]
