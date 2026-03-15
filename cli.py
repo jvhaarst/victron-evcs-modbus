@@ -18,6 +18,7 @@ from registers import (
     StringRegister,
     filter_changed,
     format_value,
+    parse_address_range,
     validate_write_value,
 )
 
@@ -126,16 +127,10 @@ def build_scan_table(
 
 def _handle_scan(args: Any, console: Console) -> None:
     """Handle the --scan CLI flow."""
-    parts = args.scan.split("-")
-    if len(parts) != 2 or not all(p.strip().isdigit() for p in parts):
-        console.print(
-            f"[red]Invalid scan range '{args.scan}'. "
-            f"Format: START-END (e.g. 5000-5200)[/red]"
-        )
-        sys.exit(1)
-    start, end = int(parts[0]), int(parts[1])
-    if start > end:
-        console.print(f"[red]Scan start {start} must be ≤ end {end}[/red]")
+    try:
+        start, end = parse_address_range(args.scan)
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
         sys.exit(1)
 
     client = ModbusTcpClient(host=args.host, port=args.port)
@@ -240,14 +235,11 @@ def main() -> None:
 
     address_range = None
     if args.address is not None:
-        parts = args.address.split("-")
-        if len(parts) != 2 or not all(p.strip().isdigit() for p in parts):
-            console.print(
-                f"[red]Invalid address range '{args.address}'. "
-                f"Format: START-END (e.g. 5000-5050)[/red]"
-            )
+        try:
+            address_range = parse_address_range(args.address)
+        except ValueError as e:
+            console.print(f"[red]{e}[/red]")
             sys.exit(1)
-        address_range = (int(parts[0]), int(parts[1]))
 
     if args.scan:
         _handle_scan(args, console)
