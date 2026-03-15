@@ -5,8 +5,8 @@ from unittest.mock import MagicMock
 import pytest
 from rich.console import Console as _RichConsole
 
-from cli import build_table, filter_registers
-from modbus import read_registers, write_register
+from cli import build_scan_table, build_table, filter_registers
+from modbus import read_registers, scan_registers, write_register
 from registers import (
     ALL_REGISTERS,
     Register,
@@ -772,3 +772,90 @@ def test_changed_with_write_ignored(monkeypatch):
     cli.main()
 
     assert not calls, "filter_changed must not be called when --write is present"
+
+
+# --- scan_registers tests ---
+
+def test_scan_registers_returns_values():
+    client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = False
+    response.registers = [100, 200, 300]
+    client.read_holding_registers.return_value = response
+
+    result = scan_registers(client, 5000, 5002)
+    assert result == {5000: 100, 5001: 200, 5002: 300}
+
+
+def test_scan_registers_error_returns_none():
+    client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = True
+    client.read_holding_registers.return_value = response
+
+    result = scan_registers(client, 5000, 5002)
+    assert result == {5000: None, 5001: None, 5002: None}
+
+
+def test_scan_registers_chunks_at_125():
+    client = MagicMock()
+    resp1 = MagicMock()
+    resp1.isError.return_value = False
+    resp1.registers = list(range(125))
+    resp2 = MagicMock()
+    resp2.isError.return_value = False
+    resp2.registers = [999]
+    client.read_holding_registers.side_effect = [resp1, resp2]
+
+    result = scan_registers(client, 5000, 5125)
+    assert len(result) == 126
+    assert result[5000] == 0
+    assert result[5124] == 124
+    assert result[5125] == 999
+    # Verify two calls were made with correct chunking
+    calls = client.read_holding_registers.call_args_list
+    assert len(calls) == 2
+    assert calls[0].kwargs["count"] == 125
+    assert calls[1].kwargs["count"] == 1
+
+
+def test_scan_registers_uses_unit_id():
+    client = MagicMock()
+    response = MagicMock()
+    response.isError.return_value = False
+    response.registers = [42]
+    client.read_holding_registers.return_value = response
+
+    scan_registers(client, 5000, 5000, unit_id=7)
+    client.read_holding_registers.assert_called_once_with(address=5000, count=1, device_id=7)
+
+
+# --- build_scan_table tests ---
+
+def test_build_scan_table_basic():
+    values = {5000: 0xC024, 5001: 42}
+    known = [Register(5000, "Product ID", "uint16", 1, "")]
+    table = build_scan_table(5000, 5001, values, known)
+    text = _render(table)
+    assert "5000" in text
+    assert "0x1388" in text  # hex of 5000
+    assert "49188" in text  # decimal of 0xC024
+    assert "0xC024" in text  # hex value
+    assert "Product ID" in text
+    assert "5001" in text
+
+
+def test_build_scan_table_error_value():
+    values = {5000: None}
+    table = build_scan_table(5000, 5000, values, [])
+    text = _render(table)
+    assert "error" in text
+
+
+def test_build_scan_table_unknown_register():
+    values = {9999: 1}
+    table = build_scan_table(9999, 9999, values, [])
+    text = _render(table)
+    assert "9999" in text
+    # Known name column should be empty for unknown registers
+    assert "Product ID" not in text
