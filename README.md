@@ -133,6 +133,7 @@ Launches a full-screen register editor:
 
 115 holding registers sourced from the official Victron spec:
 [`docs/specs/EVCS-Modbus-TCP-register-list-v3.8.xlsx`](docs/specs/EVCS-Modbus-TCP-register-list-v3.8.xlsx)
+This was downloaded through https://www.victronenergy.com/support-and-downloads/technical-information
 
 Modbus unit-id: **1** (configurable via `--unit-id`), addresses: **5000–5140**. Scaled values (e.g. `A×10`, `kWh×100`, `°C×10`) are automatically converted for display and input. R/W registers enforce the documented valid range at input time.
 
