@@ -18,10 +18,10 @@ def mock_modbus_client():
     response1.isError.return_value = False
     response1.registers = [0xC024] + [0] * 124  # 125 registers
 
-    # Chunk 2: address=5125, count=16 (registers 5125-5140)
+    # Chunk 2: address=5125, count=19 (registers 5125-5143)
     response2 = MagicMock()
     response2.isError.return_value = False
-    response2.registers = [0] * 16  # 16 registers
+    response2.registers = [0] * 19  # 19 registers
 
     client.read_holding_registers.side_effect = [response1, response2]
     return client

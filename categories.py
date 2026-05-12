@@ -32,6 +32,7 @@ CATEGORIES: dict[str, list[int]] = {
         5022,  # Session cost
         5023,  # Total energy H
         5024,  # Total energy L
+        5141,  # Session saved cost
     ],
     "device": [
         5000,  # Product ID
@@ -47,7 +48,6 @@ CATEGORIES: dict[str, list[int]] = {
         5113,  # Reboot counter
         5114,  # Last reboot reason code
         5132,  # Light ring brightness limit
-        5140,  # Online update feed
     ],
     "config": [
         5026,  # Charger position
@@ -78,6 +78,8 @@ CATEGORIES: dict[str, list[int]] = {
         5131,  # Inverter overtemperature protection. Charging current restore timeout
         5133,  # CP auto-calibration state
         5139,  # Multiple relay charging. Conditions check delay
+        5142,  # Energy price per kWh H
+        5143,  # Energy price per kWh L
     ],
     "auto_mode": [
         5065,  # Auto mode type

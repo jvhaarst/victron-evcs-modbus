@@ -1,6 +1,6 @@
 """Holding register definitions for Victron EVCS Modbus TCP (unit-id 1).
 
-Source: EVCS-Modbus-TCP-register-list-v3.8.xlsx, sheet "Holding registers".
+Source: EVCS-Modbus-TCP-register-list-v3.9.xlsx, sheet "Holding registers".
 """
 from __future__ import annotations
 
@@ -141,7 +141,9 @@ REGISTERS = [
     Register(5137, "'Battery powered'. 'feed in' detection",                       "uint16", 1,   "",     default=0,     access="R/W", notes="1 - enabled, 0 - disabled", value_range=(0.0, 1.0)),
     Register(5138, "'Battery powered'. BKPB SoC max",                             "uint16", 1,   "%",    default=99,    access="R/W", notes="%", value_range=(1.0, 100.0)),
     Register(5139, "Multiple relay charging. Conditions check delay",              "uint16", 1,   "s",    default=10,    access="R/W", notes="s, related to 'multiple relay charging' feature", value_range=(1.0, 65535.0)),
-    Register(5140, "Online update feed",                                           "uint16", 1,   "",     default=0,     access="R/W", notes="0 - Official release, 1 - Beta release", value_range=(0.0, 1.0)),
+    Register(5141, "Session saved cost",                                           "uint16", 100, "currency", notes="currency*100"),
+    Register(5142, "Energy price per kWh H",                                       "uint16", 1,   "",     default=0,     access="R/W", notes="Price*1000. High value should be written firstly and then low value."),
+    Register(5143, "Energy price per kWh L",                                       "uint16", 1000,"price", default=130,  access="R/W", notes="Price*1000. Formula to calculate final value: (Energy price H * 65536 + Energy price L) / 1000 = Price"),
 ]
 
 
