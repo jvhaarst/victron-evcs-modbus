@@ -43,7 +43,7 @@ See [Victron EVCS — 1P/3P Phase Switching via Modbus TCP](./Victron-EVCS-1P-3P
 ### Read registers (table output)
 
 ```bash
-# All 115 registers
+# All 117 registers
 uv run python cli.py 192.168.0.128 --read
 
 # Filter by category

@@ -245,9 +245,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "pymodbus", specifier = ">=3.7" },
+    { name = "pymodbus", specifier = ">=3.10" },
     { name = "rich", specifier = ">=13.0" },
-    { name = "textual", specifier = ">=0.70.0" },
+    { name = "textual", specifier = ">=8.0" },
 ]
 
 [package.metadata.requires-dev]

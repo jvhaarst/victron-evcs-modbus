@@ -3,9 +3,9 @@ name = "victron-evcs-modbus"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "pymodbus>=3.7",
+    "pymodbus>=3.10",   # device_id= kwarg (was slave=) lands in 3.10.0
     "rich>=13.0",
-    "textual>=0.70.0",
+    "textual>=8.0",
 ]
 
 [dependency-groups]
